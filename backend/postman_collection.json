@@ -1,0 +1,215 @@
+{
+  "info": {
+    "_postman_id": "b1a2c3d4-e5f6-7a8b-9c0d-1e2f3a4b5c6d",
+    "name": "Trợ lý ảo AI Sinh viên RAG - Backend API",
+    "description": "Postman Collection đầy đủ các endpoint phục vụ đồ án Trợ lý ảo AI hỗ trợ sinh viên dựa trên RAG (FastAPI).",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://127.0.0.1:8000",
+      "type": "string"
+    },
+    {
+      "key": "sessionId",
+      "value": "sess_postman_demo_01",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "1. Hệ thống",
+      "item": [
+        {
+          "name": "GET /health (Root Health Check)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/health",
+              "host": ["{{baseUrl}}"],
+              "path": ["health"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "GET /api/health (API Health Check)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/health",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "health"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "2. Hỏi đáp Trợ lý ảo AI (Chat)",
+      "item": [
+        {
+          "name": "POST /api/chat - Hỏi về Học bổng",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"message\": \"Điều kiện để được xét học bổng khuyến khích là gì?\",\n  \"session_id\": \"{{sessionId}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/chat",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "chat"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "POST /api/chat - Hỏi về Đăng ký tín chỉ",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"message\": \"Quy định đăng ký tín chỉ và rút bớt môn học?\",\n  \"session_id\": \"{{sessionId}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/chat",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "chat"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "POST /api/chat - Hỏi về Đồ án tốt nghiệp",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"message\": \"Điều kiện để được nhận đồ án tốt nghiệp?\",\n  \"session_id\": \"{{sessionId}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/chat",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "chat"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "GET /api/chat/history/{session_id} - Xem lịch sử",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/chat/history/{{sessionId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "chat", "history", "{{sessionId}}"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "POST /api/chat - [Lỗi 422] Câu hỏi rỗng/khoảng trắng",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"message\": \"   \",\n  \"session_id\": \"{{sessionId}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/chat",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "chat"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "3. Quản trị viên (Admin)",
+      "item": [
+        {
+          "name": "POST /api/admin/upload - Tải file PDF quy chế",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": "sample_regulation.pdf"
+                },
+                {
+                  "key": "category",
+                  "value": "dao_tao",
+                  "type": "text"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/upload",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "admin", "upload"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "POST /api/admin/upload - [Lỗi 400] Tải file sai định dạng (.exe)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": "virus.exe"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/upload",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "admin", "upload"]
+            }
+          },
+          "response": []
+        }
+      ]
+    }
+  ]
+}

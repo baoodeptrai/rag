@@ -1,0 +1,33 @@
+# Python bytecode
+__pycache__/
+*.py[cod]
+*$py.class
+*.pytest_cache/
+
+# Môi trường ảo
+venv/
+.venv/
+.setup-temp/
+env/
+ENV/
+
+# File cấu hình môi trường chứa secret/keys
+.env
+
+# Tài liệu nguồn, chỉ mục và dữ liệu truy vấn cục bộ của RAG
+data/raw/*
+!data/raw/.gitkeep
+data/processed/*
+!data/processed/.gitkeep
+data/qdrant/
+venv-legacy/
+chroma_db/
+*.db
+*.sqlite3
+
+# IDE
+.vscode/
+.idea/
+
+data/legacy_uploads/*
+!data/legacy_uploads/.gitkeep
