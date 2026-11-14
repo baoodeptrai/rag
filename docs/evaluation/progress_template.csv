@@ -1,0 +1,8 @@
+task_id,task,owner,start_date,deadline,completion_percent,status,evidence_path_or_commit,member_handover_confirmed,reviewer,notes
+P01,Chốt câu hỏi nghiên cứu và baseline,,,,,Chưa cập nhật,,,,
+P02,Hoàn thiện Golden Dataset và hướng dẫn gán nhãn,,,,,Chưa cập nhật,,,,
+P03,Cross-review nhãn độc lập và xác nhận chunk evidence,,,,,Chưa cập nhật,,,,
+P04,Chạy BM25-only / Dense-only / Hybrid RRF benchmark,,,,,Chưa cập nhật,,,,
+P05,Đánh giá citation và refusal trên output đã lưu,,,,,Chưa cập nhật,,,,
+P06,Phân tích lỗi và hoàn thiện báo cáo kết quả,,,,,Chưa cập nhật,,,,
+P07,Xác nhận mapping thành viên với module/commit và bàn giao,,,,,Chưa cập nhật,,,,

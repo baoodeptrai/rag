@@ -1,7 +1,12 @@
 from __future__ import annotations
 import json
+import os
 from pathlib import Path
 from typing import Any
+
+# The embedding model must already be available in the local cache.
+os.environ["HF_HUB_OFFLINE"] = "1"
+os.environ["TRANSFORMERS_OFFLINE"] = "1"
 
 
 def load_chunks(path: Path) -> list[dict[str, Any]]:
@@ -18,28 +23,40 @@ def load_chunks(path: Path) -> list[dict[str, Any]]:
 
 
 def index_bm25(chunks: list[dict[str, Any]], dest: Path) -> None:
-    from rank_bm25 import BM25Okapi
     import pickle, re
-    tokens = [re.findall(r"\w+", c["text"].lower(), re.UNICODE) for c in chunks]
+    if chunks:
+        from rank_bm25 import BM25Okapi
+        tokens = [re.findall(r"\w+", c["text"].lower(), re.UNICODE) for c in chunks]
+        bm25 = BM25Okapi(tokens)
+    else:
+        bm25 = None
     dest.parent.mkdir(parents=True, exist_ok=True)
-    with dest.open("wb") as f: pickle.dump((chunks, BM25Okapi(tokens)), f)
+    with dest.open("wb") as f: pickle.dump((chunks, bm25), f)
 
 
 def index_qdrant(chunks: list[dict[str, Any]], path: Path, model_name: str) -> None:
-    from sentence_transformers import SentenceTransformer
     from qdrant_client import QdrantClient, models
-    model = SentenceTransformer(model_name)
     client = QdrantClient(path=str(path))
     collection = "rag_chunks"
-    if client.collection_exists(collection): client.delete_collection(collection)
-    vectors = model.encode([c["text"] for c in chunks], normalize_embeddings=True, show_progress_bar=True)
-    client.create_collection(collection_name=collection, vectors_config=models.VectorParams(size=vectors.shape[1], distance=models.Distance.COSINE))
-    points = [models.PointStruct(id=i+1, vector=vectors[i].tolist(), payload=c) for i,c in enumerate(chunks)]
-    for start in range(0, len(points), 128): client.upsert(collection_name=collection, points=points[start:start+128])
+    if not chunks:
+        if client.collection_exists(collection): client.delete_collection(collection)
+        client.close()
+        return
+    try:
+        from sentence_transformers import SentenceTransformer
+        model = SentenceTransformer(model_name)
+        vectors = model.encode([c["text"] for c in chunks], normalize_embeddings=True, show_progress_bar=True)
+        # Do not remove the staged collection until replacement vectors exist.
+        if client.collection_exists(collection): client.delete_collection(collection)
+        client.create_collection(collection_name=collection, vectors_config=models.VectorParams(size=vectors.shape[1], distance=models.Distance.COSINE))
+        points = [models.PointStruct(id=i+1, vector=vectors[i].tolist(), payload=c) for i,c in enumerate(chunks)]
+        for start in range(0, len(points), 128): client.upsert(collection_name=collection, points=points[start:start+128])
+    finally:
+        client.close()
 
 
 def build_indexes(jsonl: Path, bm25_path: Path, qdrant_path: Path, model_name: str, no_vector=False):
     chunks = load_chunks(jsonl)
     index_bm25(chunks, bm25_path)
-    if chunks and not no_vector: index_qdrant(chunks, qdrant_path, model_name)
+    if not no_vector: index_qdrant(chunks, qdrant_path, model_name)
     return {"chunks_indexed": len(chunks), "bm25": str(bm25_path), "qdrant": None if no_vector else str(qdrant_path)}

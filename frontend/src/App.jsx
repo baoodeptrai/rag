@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import ChatWindow from "./components/ChatWindow";
+import AdminDocuments from "./components/AdminDocuments";
 import { getApiBaseUrl, isDemoMode, sendChatMessage } from "./services/chatService";
 import "./App.css";
 
@@ -204,6 +205,9 @@ function App() {
         <button className={`nav-item ${activeTab === "sources" ? "selected" : ""}`} onClick={() => setActiveTab("sources")}>
           <span>▧</span> Nguồn tri thức
         </button>
+        <button className={`nav-item ${activeTab === "admin" ? "selected" : ""}`} onClick={() => setActiveTab("admin")}>
+          <span>⚙</span> Quản lý tài liệu
+        </button>
 
         <div className="sidebar-label history-label">GẦN ĐÂY</div>
         <div className="conversation-list">
@@ -227,8 +231,8 @@ function App() {
       <main className="main-panel">
         <header className="topbar">
           <div>
-            <div className="breadcrumb">Không gian học tập / Trợ lý AI</div>
-            <h1>{activeTab === "chat" ? "Trợ lý sinh viên" : "Nguồn tri thức"}</h1>
+            <div className="breadcrumb">Không gian học tập / {activeTab === "admin" ? "Quản trị" : "Trợ lý AI"}</div>
+            <h1>{activeTab === "chat" ? "Trợ lý sinh viên" : activeTab === "admin" ? "Quản lý tài liệu" : "Nguồn tri thức"}</h1>
           </div>
           <div className="connection-status">
             <span className={`status-dot ${isDemoMode() ? "demo-dot" : "api-dot"}`} />
@@ -238,7 +242,9 @@ function App() {
 
         {notice && <div className="app-notice" role="status">{notice}<button onClick={() => setNotice("")} aria-label="Đóng thông báo">×</button></div>}
 
-        {activeTab === "sources" ? (
+        {activeTab === "admin" ? (
+          <AdminDocuments />
+        ) : activeTab === "sources" ? (
           <section className="source-overview">
             <div className="welcome-icon">▤</div>
             <h2>Nguồn tri thức</h2>

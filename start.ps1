@@ -66,7 +66,28 @@ if ($sourceFiles.Count -gt 0) {
     Write-Host "Chỉ mục đã cập nhật; bỏ qua bước lập chỉ mục."
   }
 } else {
-  Write-Host "Chưa có PDF/DOCX trong backend/data/raw; API sẽ báo chưa có căn cứ."
+  $oldManifest = if (Test-Path $manifestPath) { Get-Content -LiteralPath $manifestPath -Raw } else { $null }
+  $indexPath = Join-Path $processedDir "bm25.pkl"
+  $qdrantPath = Join-Path $backend "data\qdrant"
+  $hasStaleCorpus = ($null -ne $oldManifest -and $oldManifest.Trim()) -or
+    ($null -eq $oldManifest -and ((Test-Path $indexPath) -or (Test-Path $qdrantPath)))
+  if ($hasStaleCorpus) {
+    Write-Host "Kho tài liệu đã trống; đang xóa chunks và chỉ mục cũ..."
+    Push-Location $backend
+    $previousErrorActionPreference = $ErrorActionPreference
+    try {
+      $ErrorActionPreference = "Continue"
+      & $python -m rag_project.pipeline 2>&1 | ForEach-Object { Write-Host $_ }
+      $pipelineExitCode = $LASTEXITCODE
+    }
+    finally { Pop-Location }
+    $ErrorActionPreference = $previousErrorActionPreference
+    if ($pipelineExitCode -ne 0) { throw "Không xóa được chỉ mục cũ. Xem lỗi phía trên rồi chạy lại." }
+    Set-Content -LiteralPath $manifestPath -Value "" -NoNewline
+  } else {
+    Write-Host "Chưa có PDF/DOCX trong backend/data/raw; API sẽ báo chưa có căn cứ."
+  }
+  if ($null -eq $oldManifest) { Set-Content -LiteralPath $manifestPath -Value "" -NoNewline }
 }
 
 if (-not (Test-Path (Join-Path $frontend "node_modules"))) {

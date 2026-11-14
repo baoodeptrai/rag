@@ -795,3 +795,55 @@ button:disabled {
 @media (max-width: 620px) {
   .app-notice { margin: 10px 12px 0; }
 }
+
+.secondary-button { padding: 9px 13px; border: 1px solid #d8e0ea; border-radius: 9px; background: #fff; color: #3c526d; font-size: 12px; font-weight: 650; }
+.admin-page { width: min(1160px, 100%); margin: 0 auto; padding: 30px 28px 44px; }
+.admin-title-row, .admin-list-heading { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+.admin-title-row { margin-bottom: 22px; }
+.admin-title-row h2, .admin-lock-card h2 { margin: 5px 0 6px; color: #20354f; font-size: 25px; }
+.admin-title-row p, .admin-list-heading p { margin: 0; color: #718096; font-size: 13px; }
+.admin-eyebrow { color: #6684a6; font-size: 10px; font-weight: 750; letter-spacing: 1.2px; }
+.admin-grid { display: grid; grid-template-columns: minmax(280px, .78fr) minmax(0, 1.22fr); gap: 18px; align-items: start; }
+.admin-card, .admin-lock-card { padding: 21px; border: 1px solid #e4eaf1; border-radius: 14px; background: #fff; box-shadow: 0 8px 28px #233b5910; }
+.admin-card h3 { margin: 0; color: #273b53; font-size: 16px; }
+.admin-upload-card { display: grid; gap: 11px; }
+.admin-upload-card label, .admin-login-form label { color: #4f6177; font-size: 12px; font-weight: 650; }
+.admin-upload-card select, .admin-upload-card input[type="file"], .admin-login-form input { width: 100%; min-height: 40px; padding: 9px 10px; border: 1px solid #dce4ed; border-radius: 8px; background: #fff; color: #34465c; font: inherit; font-size: 12px; }
+.admin-upload-card input[type="file"] { padding: 8px; }
+.admin-help { padding: 10px; border-radius: 8px; background: #f4f7fb; color: #63748a; font-size: 11px; line-height: 1.6; }
+.admin-upload-card .primary-button { margin-top: 3px; }
+.admin-list-heading { align-items: flex-start; margin-bottom: 15px; }
+.admin-list-heading p { margin-top: 5px; }
+.admin-list-heading .primary-button { max-width: 200px; padding: 9px 12px; font-size: 11px; }
+.admin-document-list { border-top: 1px solid #edf1f5; }
+.admin-document-row { display: flex; align-items: center; gap: 11px; padding: 13px 2px; border-bottom: 1px solid #edf1f5; }
+.document-file-icon { display: grid; width: 34px; height: 36px; flex: 0 0 auto; place-items: center; border-radius: 8px; background: #eef4fb; color: #426b96; }
+.document-details { display: grid; min-width: 0; flex: 1; gap: 4px; }
+.document-details strong { overflow: hidden; color: #33475f; font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
+.document-details span { color: #8190a2; font-size: 10px; }
+.document-status { flex: 0 0 auto; padding: 5px 7px; border-radius: 20px; font-size: 9px; font-weight: 700; }
+.document-status.active { background: #eaf7f0; color: #32825c; }
+.document-status.pending { background: #fff4dc; color: #9b711d; }
+.admin-empty { padding: 24px 8px; color: #8290a1; font-size: 12px; text-align: center; }
+.admin-archive { margin-top: 14px; color: #5f7187; font-size: 11px; }
+.admin-archive summary { cursor: pointer; font-weight: 650; }
+.archive-row { display: flex; justify-content: space-between; gap: 12px; padding: 9px 0 0; color: #78889b; font-size: 10px; }
+.archive-row span { flex: 0 0 auto; }
+.admin-lock-card { width: min(440px, 100%); margin: 8vh auto; text-align: center; }
+.admin-icon { display: grid; width: 48px; height: 48px; margin: 0 auto 13px; place-items: center; border-radius: 14px; background: #eef4fb; color: #315c89; font-size: 22px; }
+.admin-lock-card > p { color: #728197; font-size: 12px; line-height: 1.7; }
+.admin-login-form { display: grid; gap: 10px; margin: 22px 0 12px; text-align: left; }
+.admin-lock-card small { color: #8793a2; font-size: 10px; }
+.admin-alert { margin-bottom: 14px; padding: 11px 13px; border: 1px solid; border-radius: 9px; font-size: 12px; line-height: 1.6; }
+.admin-alert.error { border-color: #f0cdcd; background: #fff5f5; color: #a23e3e; }
+.admin-alert.success { border-color: #cde8d8; background: #f1fbf5; color: #397451; }
+@media (max-width: 620px) {
+  .admin-page { padding: 20px 13px 34px; }
+  .admin-grid { grid-template-columns: 1fr; }
+  .admin-title-row { align-items: flex-start; }
+  .admin-title-row h2 { font-size: 21px; }
+  .admin-card { padding: 16px; }
+  .admin-list-heading { flex-direction: column; }
+  .admin-list-heading .primary-button { max-width: none; width: 100%; }
+  .document-status { font-size: 8px; }
+}

@@ -1,3 +1,7 @@
+import asyncio
+import logging
+import os
+
 from fastapi import FastAPI, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import RedirectResponse
@@ -50,6 +54,24 @@ async def redirect_to_docs():
 
 
 app.include_router(api_router, prefix=settings.API_V1_STR)
+
+
+@app.on_event("startup")
+async def warm_retrieval_embedding():
+    """Load the local embedding model before accepting chat requests."""
+    try:
+        from rag_project.rag import _embedding_model
+
+        model_name = os.getenv(
+            "EMBEDDING_MODEL",
+            "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2",
+        )
+        await asyncio.to_thread(_embedding_model, model_name)
+        logging.getLogger(__name__).info("Local retrieval embedding model is ready")
+    except Exception:
+        # Keep health/docs available so a missing local model can be diagnosed;
+        # the chat path will report its retrieval error when used.
+        logging.getLogger(__name__).exception("Could not warm the local retrieval embedding model")
 
 
 if __name__ == "__main__":

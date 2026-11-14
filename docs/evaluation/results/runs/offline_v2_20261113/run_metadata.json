@@ -1,0 +1,15 @@
+{
+  "run_id": "offline_v2_20261113",
+  "created_at": "2026-11-13T20:42:56.327480+07:00",
+  "dataset": "docs\\evaluation\\golden_dataset_v2_draft.csv",
+  "dataset_sha256": "30de3145d899636c09c7de446586f4066d78bd79413b91e5663899b9ac52d193",
+  "corpus": "backend\\data\\processed\\chunks.jsonl",
+  "corpus_sha256": "60e0131fdc723f15b8bb78fcdcd89fa0c8cd8d62e3b41b3a0181d4712db4c972",
+  "embedding_model": "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2",
+  "n_answerable": 70,
+  "k": 5,
+  "rrf_k": 60,
+  "repeats": 3,
+  "warmup_repeats": 1,
+  "hardware_note": "Fill in CPU/GPU/RAM details before reporting latency."
+}

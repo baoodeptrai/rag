@@ -26,6 +26,7 @@ class Settings(BaseSettings):
     UPLOAD_DIR: str = "uploads"  # Legacy setting; RAG_RAW_DIR is used by the upload service.
     MAX_FILE_SIZE_MB: int = 20
     ALLOWED_EXTENSIONS: str = ".pdf,.docx"
+    ADMIN_API_TOKEN: str = ""
 
     @property
     def allowed_extensions_list(self) -> List[str]:

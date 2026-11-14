@@ -1,0 +1,22 @@
+{
+  "run_id": "offline_v2_20261113_final",
+  "created_at": "2026-11-13T20:52:10.799115+07:00",
+  "dataset": "docs\\evaluation\\golden_dataset_v2_draft.csv",
+  "dataset_sha256": "d0f69f562a2f1f5d34ab4f24aedaa6930a827e9db67df7c65940293dacac8f35",
+  "corpus": "backend\\data\\processed\\chunks.jsonl",
+  "corpus_sha256": "60e0131fdc723f15b8bb78fcdcd89fa0c8cd8d62e3b41b3a0181d4712db4c972",
+  "embedding_model": "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2",
+  "n_answerable": 70,
+  "k": 5,
+  "rrf_k": 60,
+  "repeats": 3,
+  "warmup_repeats": 1,
+  "hardware_note": "Retrieval and Qwen smoke ran locally; Qwen3:4b inference was CPU-only.",
+  "hardware": {
+    "cpu": "Intel Core 7 150U",
+    "ram_gb": 15.7,
+    "gpu": "Intel Graphics (integrated)",
+    "ollama_processor": "100% CPU",
+    "ollama_context": 2048
+  }
+}\n

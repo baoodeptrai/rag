@@ -78,10 +78,17 @@ def chunk_section(section: dict[str, Any], doc_name: str, page_number: int | Non
 
 def build_chunks(raw_dir: Path, output: Path, max_tokens=600, overlap=80) -> dict[str, Any]:
     files = sorted(p for p in raw_dir.rglob("*") if p.is_file() and p.suffix.lower() in {".pdf", ".docx"})
-    chunks, page_count, errors = [], 0, []
+    chunks, page_count, errors, duplicates = [], 0, [], []
+    seen_content: dict[str, str] = {}
     for path in files:
         try:
             pages = read_document(path); page_count += len(pages)
+            normalized_text = re.sub(r"\s+", " ", " ".join(p["text"] for p in pages)).strip().casefold()
+            content_hash = hashlib.sha256(normalized_text.encode("utf-8")).hexdigest()
+            if content_hash in seen_content:
+                duplicates.append({"file": path.name, "duplicate_of": seen_content[content_hash], "content_sha256": content_hash})
+                continue
+            seen_content[content_hash] = path.name
             context = {"chapter": None, "article": None, "clause": None}
             for page in pages:
                 sections = split_sections(page["text"])
@@ -104,5 +111,6 @@ def build_chunks(raw_dir: Path, output: Path, max_tokens=600, overlap=80) -> dic
     missing = sum(any(row.get(k) is None for k in ("doc_name", "page_number", "chapter", "article", "clause")) for row in chunks)
     report = {"files_found": len(files), "files_read": len(files)-len(errors), "pages_or_documents": page_count,
               "chunks": len(chunks), "empty_chunks": sum(not x["text"].strip() for x in chunks),
-              "chunks_with_optional_metadata_missing": missing, "errors": errors, "output": str(output)}
+              "chunks_with_optional_metadata_missing": missing, "duplicates_skipped": duplicates,
+              "errors": errors, "output": str(output)}
     return report

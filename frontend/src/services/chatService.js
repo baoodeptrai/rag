@@ -1,9 +1,5 @@
 const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || "http://127.0.0.1:8000").replace(/\/+$/, "");
 const DEMO_MODE = import.meta.env.VITE_DEMO_MODE === "true";
-// The backend may spend up to 45 seconds waiting for the LLM provider.
-// Leave extra time for retrieval/model startup so the browser does not abort first.
-const REQUEST_TIMEOUT_MS = 60000;
-
 function firstDefined(...values) {
   return values.find((value) => value !== undefined && value !== null && value !== "");
 }
@@ -79,48 +75,38 @@ export async function sendChatMessage({ message, sessionId, signal }) {
     };
   }
 
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
-  const abortFromCaller = () => controller.abort();
-  signal?.addEventListener("abort", abortFromCaller, { once: true });
-
+  let response;
   try {
-    let response;
-    try {
-      response = await fetch(`${API_BASE_URL}/api/chat`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Accept: "application/json" },
-        body: JSON.stringify({ message, session_id: sessionId }),
-        signal: controller.signal,
-      });
-    } catch (error) {
-      if (controller.signal.aborted) {
-        throw new Error("Yêu cầu đã bị hủy hoặc quá thời gian chờ 30 giây.", { cause: error });
-      }
-      throw new Error(`Không kết nối được Backend tại ${API_BASE_URL}. Hãy kiểm tra Backend và cấu hình API URL.`, { cause: error });
+    response = await fetch(`${API_BASE_URL}/api/chat`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Accept: "application/json" },
+      body: JSON.stringify({ message, session_id: sessionId }),
+      signal,
+    });
+  } catch (error) {
+    if (signal?.aborted) {
+      throw new DOMException("Yêu cầu đã bị hủy.", "AbortError");
     }
-
-    const contentType = response.headers.get("content-type") || "";
-    const payload = contentType.includes("application/json")
-      ? await response.json()
-      : await response.text();
-
-    if (!response.ok) {
-      const detail = typeof payload === "object"
-        ? firstDefined(payload.detail, payload.message, payload.error)
-        : payload;
-      throw new Error(`Backend trả về lỗi HTTP ${response.status}${detail ? `: ${detail}` : ""}`);
-    }
-
-    if (typeof payload === "string") {
-      throw new Error("Backend không trả về JSON. Cần kiểm tra định dạng phản hồi API.");
-    }
-
-    return { ...normalizeChatResponse(payload), demo: false };
-  } finally {
-    clearTimeout(timeout);
-    signal?.removeEventListener("abort", abortFromCaller);
+    throw new Error(`Không kết nối được Backend tại ${API_BASE_URL}. Hãy kiểm tra Backend và cấu hình API URL.`, { cause: error });
   }
+
+  const contentType = response.headers.get("content-type") || "";
+  const payload = contentType.includes("application/json")
+    ? await response.json()
+    : await response.text();
+
+  if (!response.ok) {
+    const detail = typeof payload === "object"
+      ? firstDefined(payload.detail, payload.message, payload.error)
+      : payload;
+    throw new Error(`Backend trả về lỗi HTTP ${response.status}${detail ? `: ${detail}` : ""}`);
+  }
+
+  if (typeof payload === "string") {
+    throw new Error("Backend không trả về JSON. Cần kiểm tra định dạng phản hồi API.");
+  }
+
+  return { ...normalizeChatResponse(payload), demo: false };
 }
 
 export function isDemoMode() {
