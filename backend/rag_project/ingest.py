@@ -85,13 +85,7 @@ def build_chunks(raw_dir: Path, output: Path, max_tokens=600, overlap=80) -> dic
         raise ValueError(f"Không thể đọc metadata tài liệu {registry_path}: {exc}") from exc
     if not isinstance(registry, dict):
         raise ValueError(f"Metadata tài liệu phải là JSON object: {registry_path}")
-    superseded_chunk_ids = {
-        str(chunk_id)
-        for info in registry.values() if isinstance(info, dict)
-        for chunk_id in info.get("superseded_chunk_ids", [])
-    }
     chunks, page_count, errors, duplicates = [], 0, [], []
-    superseded_skipped = 0
     seen_content: dict[str, str] = {}
     for path in files:
         try:
@@ -120,9 +114,6 @@ def build_chunks(raw_dir: Path, output: Path, max_tokens=600, overlap=80) -> dic
                 for section in sections:
                     rows = chunk_section(section, path.name, page["page_number"], max_tokens, overlap)
                     for row in rows:
-                        if row["chunk_id"] in superseded_chunk_ids:
-                            superseded_skipped += 1
-                            continue
                         row.update({
                             key: document_metadata.get(key)
                             for key in ("category", "document_number", "published_at", "effective_from", "effective_until")
@@ -137,6 +128,5 @@ def build_chunks(raw_dir: Path, output: Path, max_tokens=600, overlap=80) -> dic
     report = {"files_found": len(files), "files_read": len(files)-len(errors), "pages_or_documents": page_count,
               "chunks": len(chunks), "empty_chunks": sum(not x["text"].strip() for x in chunks),
               "chunks_with_optional_metadata_missing": missing, "duplicates_skipped": duplicates,
-              "superseded_chunks_skipped": superseded_skipped,
               "errors": errors, "output": str(output)}
     return report

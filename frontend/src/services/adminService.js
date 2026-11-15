@@ -28,20 +28,3 @@ export function uploadAdminDocument(token, formData) {
 export function reindexAdminDocuments(token) {
   return adminRequest("/api/admin/reindex", token, { method: "POST" });
 }
-
-export function updateAdminDocumentMetadata(token, formData) {
-  return adminRequest("/api/admin/documents/metadata", token, { method: "POST", body: formData });
-}
-
-export function analyzeAdminAmendment(token, fileName) {
-  const body = new FormData();
-  body.append("file_name", fileName);
-  return adminRequest("/api/admin/documents/analyze-amendment", token, { method: "POST", body });
-}
-
-export function approveAdminAmendment(token, fileName, chunkIds) {
-  const body = new FormData();
-  body.append("file_name", fileName);
-  body.append("approved_chunk_ids", JSON.stringify(chunkIds));
-  return adminRequest("/api/admin/documents/approve-amendment", token, { method: "POST", body });
-}
