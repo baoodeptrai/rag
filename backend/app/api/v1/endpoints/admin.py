@@ -151,6 +151,8 @@ async def upload_document(
         "effective_until": ends,
         "uploaded_at": datetime.now(timezone.utc).isoformat(),
         "index_status": "pending",
+        "revision_status": "not_analyzed" if change_type == "amendment" else None,
+        "superseded_chunk_ids": [],
     }
     _save_registry(registry)
 
@@ -180,6 +182,100 @@ async def upload_document(
         "supersedes_document": archived_name,
         "index_status": index_status,
         "message": message,
+    }
+
+
+@router.post("/admin/documents/analyze-amendment", summary="AI đối chiếu văn bản sửa đổi với bản gốc", dependencies=[Depends(require_admin)])
+async def analyze_amendment_document(file_name: str = Form(...)):
+    registry = _registry()
+    info = registry.get(file_name)
+    if not isinstance(info, dict) or info.get("change_type") != "amendment":
+        raise HTTPException(status_code=422, detail="Chỉ tài liệu được khai báo là văn bản sửa đổi/phụ lục mới phân tích được.")
+    related_document = info.get("related_document")
+    if not related_document:
+        raise HTTPException(status_code=422, detail="Hãy gắn văn bản sửa đổi với tài liệu gốc trước khi phân tích.")
+    from rag_project.revision import analyze_amendment
+    try:
+        analysis = await run_in_threadpool(
+            analyze_amendment, file_name, related_document, Path(settings.RAG_RAW_DIR)
+        )
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    except Exception as exc:
+        raise HTTPException(status_code=503, detail=f"AI local chưa phân tích được tài liệu: {type(exc).__name__}.") from exc
+
+    registry = _registry()
+    info = registry.get(file_name, {})
+    info["revision_analysis"] = analysis
+    info["revision_status"] = "review_required"
+    info["revision_analyzed_at"] = datetime.now(timezone.utc).isoformat()
+    registry[file_name] = info
+    _save_registry(registry)
+    return {
+        "success": True,
+        "file_name": file_name,
+        "related_document": related_document,
+        "revision_status": "review_required",
+        "analysis": analysis,
+        "message": f"AI đã đối chiếu {len(analysis)} đoạn mới. Hãy duyệt các đề xuất trước khi thay nội dung cũ.",
+    }
+
+
+@router.post("/admin/documents/approve-amendment", summary="Duyệt đề xuất thay thế chunks", dependencies=[Depends(require_admin)])
+async def approve_amendment_document(
+    file_name: str = Form(...),
+    approved_chunk_ids: str = Form(default="[]"),
+):
+    registry = _registry()
+    info = registry.get(file_name)
+    if not isinstance(info, dict) or info.get("change_type") != "amendment":
+        raise HTTPException(status_code=422, detail="Không tìm thấy văn bản sửa đổi cần duyệt.")
+    if info.get("revision_status") != "review_required":
+        raise HTTPException(status_code=409, detail="Hãy chạy phân tích AI trước khi duyệt.")
+    try:
+        selected = json.loads(approved_chunk_ids)
+    except json.JSONDecodeError as exc:
+        raise HTTPException(status_code=422, detail="Danh sách chunk được duyệt không hợp lệ.") from exc
+    if not isinstance(selected, list) or any(not isinstance(item, str) for item in selected):
+        raise HTTPException(status_code=422, detail="Danh sách chunk được duyệt phải là một JSON array các ID.")
+    proposed = {
+        chunk_id
+        for item in info.get("revision_analysis", [])
+        if item.get("classification") == "replace"
+        for chunk_id in item.get("superseded_chunk_ids", [])
+    }
+    if not set(selected).issubset(proposed):
+        raise HTTPException(status_code=422, detail="Có chunk không thuộc đề xuất thay thế của AI.")
+
+    already_superseded = set(info.get("superseded_chunk_ids", []))
+    info["superseded_chunk_ids"] = sorted(already_superseded | set(selected))
+    info["revision_status"] = "approved"
+    info["revision_approved_at"] = datetime.now(timezone.utc).isoformat()
+    info["index_status"] = "pending"
+    registry[file_name] = info
+    _save_registry(registry)
+
+    from rag_project.pipeline import main as run_pipeline
+    try:
+        result = await run_in_threadpool(run_pipeline)
+    except Exception:
+        result = 1
+    if result != 0:
+        return {
+            "success": True,
+            "index_status": "pending",
+            "message": "Đã lưu quyết định duyệt nhưng chưa cập nhật được index. Chỉ mục trước vẫn hoạt động; hãy kiểm tra lỗi rồi dựng lại.",
+        }
+    registry = _registry()
+    registry[file_name]["index_status"] = "active"
+    _save_registry(registry)
+    return {
+        "success": True,
+        "index_status": "active",
+        "superseded_chunk_count": len(selected),
+        "message": f"Đã duyệt và cập nhật index; thay {len(selected)} chunks cũ bằng nội dung mới.",
     }
 
 

@@ -94,10 +94,10 @@ Trong giao diện, mở **Quản lý tài liệu** và nhập giá trị `ADMIN_
 - **Thay tài liệu:** chọn bản hiện hành cần thay; bản cũ được lưu trữ và chỉ mục tự dựng lại.
 - **Thay theo số/ký hiệu:** nhập số văn bản mới và số văn bản bị thay thế. Nếu số cũ khớp đúng một tài liệu đang dùng, backend tự archive bản đó và lập chỉ mục lại. Số văn bản cần được quản trị viên nhập/xác nhận; hệ thống chưa tự đọc quan hệ thay thế từ website hoặc nội dung scan.
 - **Bổ sung metadata cho file cũ:** dùng biểu mẫu “Hiệu chỉnh metadata tài liệu hiện hành” để gán số hiệu/ngày hiệu lực cho tài liệu đã nạp trước đây; chỉ mục sẽ được dựng lại.
-- **Tài liệu sửa đổi/phụ lục:** lưu thành file riêng và liên kết với tài liệu gốc khi phù hợp.
+- **Tài liệu sửa đổi/phụ lục:** lưu thành file riêng và bắt buộc liên kết với tài liệu gốc. Trong danh sách tài liệu, bấm **Phân tích với AI** để Qwen local so sánh từng đoạn mới với các đoạn gần nhất trong tài liệu gốc. Giao diện hiển thị phân loại, độ tin cậy, lý do và nội dung mới/các đoạn cũ ứng viên. AI chỉ đề xuất; quản trị viên chọn các đoạn cũ được thay rồi bấm **Duyệt lựa chọn & cập nhật chỉ mục**. Chỉ các đoạn cũ đã duyệt mới bị loại khỏi index; nội dung gốc vẫn còn trong file và registry. Đoạn mới luôn được lập chỉ mục như nguồn bổ sung. Phân tích hỗ trợ tối đa 50 chunks mỗi lần; tài liệu dài hơn cần chia nhỏ. Kiểm tra kỹ nội dung, nhất là khi PDF trích xuất lỗi hoặc AI đánh dấu không chắc chắn.
 - **Ngày hiệu lực:** nhập ngày ban hành, ngày bắt đầu và ngày kết thúc (nếu có). Tài liệu ngoài thời hạn không được trả về trong kết quả truy xuất; để dọn khỏi kho vector, chạy cập nhật chỉ mục sau khi thay đổi tài liệu.
 
-Khi có N thông báo mới dạng thêm mới, có thể tải lần lượt và bấm cập nhật chỉ mục một lần; pipeline sẽ dựng lại toàn bộ kho active. Khi thay theo số văn bản, backend archive và dựng lại index ngay sau từng lần thay. Có thể đặt nguồn tài liệu ở vị trí khác bằng `RAG_RAW_DIR` trong `backend/.env`. Chưa có crawler/lịch tự đồng bộ vì cần cấu hình URL/API nguồn chính thức.
+Khi có N thông báo mới dạng thêm mới, có thể tải lần lượt và bấm cập nhật chỉ mục một lần; pipeline sẽ dựng lại toàn bộ kho active. Khi thay theo số văn bản, backend archive và dựng lại index ngay sau từng lần thay. Với phụ lục sửa một phần, dùng bước phân tích và duyệt ở trên để giữ lại các phần cũ không bị sửa. Có thể đặt nguồn tài liệu ở vị trí khác bằng `RAG_RAW_DIR` trong `backend/.env`. Chưa có crawler/lịch tự đồng bộ vì cần cấu hình URL/API nguồn chính thức.
 
 ## Cấu hình thường dùng
 

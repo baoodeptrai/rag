@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { getAdminDocuments, reindexAdminDocuments, updateAdminDocumentMetadata, uploadAdminDocument } from "../services/adminService";
+import { analyzeAdminAmendment, approveAdminAmendment, getAdminDocuments, reindexAdminDocuments, updateAdminDocumentMetadata, uploadAdminDocument } from "../services/adminService";
 
 const TOKEN_KEY = "uniassist-admin-token";
 const formatSize = (size) => size < 1024 * 1024 ? `${(size / 1024).toFixed(0)} KB` : `${(size / (1024 * 1024)).toFixed(1)} MB`;
@@ -26,6 +26,8 @@ export default function AdminDocuments() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
+  const [analyzingFile, setAnalyzingFile] = useState("");
+  const [approvedByFile, setApprovedByFile] = useState({});
 
   const activeDocs = useMemo(() => documents.filter((doc) => doc.status === "active"), [documents]);
   const pendingCount = activeDocs.filter((doc) => doc.index_status === "pending").length;
@@ -165,6 +167,41 @@ export default function AdminDocuments() {
     }
   }
 
+  async function handleAnalyzeAmendment(fileName) {
+    setAnalyzingFile(fileName);
+    setError("");
+    setNotice(`Đang dùng AI local đối chiếu ${fileName} với tài liệu gốc…`);
+    try {
+      const result = await analyzeAdminAmendment(token, fileName);
+      const initial = (result.analysis || []).flatMap((item) => item.classification === "replace" ? item.superseded_chunk_ids : []);
+      setApprovedByFile((current) => ({ ...current, [fileName]: [...new Set(initial)] }));
+      setNotice(result.message);
+      await refreshDocs();
+    } catch (err) {
+      setError(err.message);
+      setNotice("");
+    } finally {
+      setAnalyzingFile("");
+    }
+  }
+
+  async function handleApproveAmendment(fileName) {
+    const selected = approvedByFile[fileName] || [];
+    setBusy(true);
+    setError("");
+    setNotice("Đang cập nhật chỉ mục theo các đoạn đã duyệt…");
+    try {
+      const result = await approveAdminAmendment(token, fileName, selected);
+      setNotice(result.message);
+      await refreshDocs();
+    } catch (err) {
+      setError(err.message);
+      setNotice("");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   if (!token) {
     return (
       <section className="admin-page">
@@ -206,7 +243,7 @@ export default function AdminDocuments() {
           {(changeType === "replace" || changeType === "amendment") && (
             <>
               <label htmlFor="related-document">{changeType === "replace" ? "Bản hiện hành cần thay thế" : "Văn bản gốc liên quan (không bắt buộc)"}</label>
-              <select id="related-document" value={related} onChange={(e) => setRelated(e.target.value)} required={changeType === "replace" && !supersedesNumber.trim()}>
+              <select id="related-document" value={related} onChange={(e) => setRelated(e.target.value)} required={changeType === "replace" && !supersedesNumber.trim() || changeType === "amendment"}>
                 <option value="">{changeType === "replace" ? "Chọn tài liệu" : "Không chọn"}</option>
                 {activeDocs.map((doc) => <option key={doc.file_name} value={doc.file_name}>{doc.file_name}</option>)}
               </select>
@@ -232,7 +269,7 @@ export default function AdminDocuments() {
           <div className="admin-help">
             {changeType === "new" && "Tài liệu độc lập sẽ được thêm vào kho hiện hành. Có thể nhập số văn bản bị thay thế ở trường bên trên để hệ thống lưu trữ bản cũ tự động."}
             {changeType === "replace" && "Bản cũ sẽ được lưu trong kho lưu trữ; chỉ bản mới được lập chỉ mục."}
-            {changeType === "amendment" && "Giữ nguyên tài liệu gốc và thêm văn bản sửa đổi/phụ lục làm nguồn riêng."}
+            {changeType === "amendment" && "AI sẽ so sánh từng đoạn với tài liệu gốc đã chọn. Bạn xem và duyệt đề xuất trước khi đoạn cũ bị loại khỏi chỉ mục."}
           </div>
           <button className="primary-button" type="submit" disabled={busy}>{busy ? "Đang xử lý…" : "Tải tài liệu lên"}</button>
         </form>
@@ -241,7 +278,18 @@ export default function AdminDocuments() {
           <div className="admin-list-heading"><div><h3>Tài liệu đang dùng</h3><p>{activeDocs.length} tài liệu</p></div><button className="primary-button" type="button" onClick={handleReindex} disabled={busy || activeDocs.length === 0}>{busy ? "Đang cập nhật…" : pendingCount ? `Cập nhật chỉ mục (${pendingCount})` : "Dựng lại chỉ mục"}</button></div>
           <div className="admin-document-list">
             {activeDocs.length === 0 && <div className="admin-empty">Chưa có tài liệu trong kho.</div>}
-            {activeDocs.map((doc) => <article className="admin-document-row" key={doc.file_name}><span className="document-file-icon">▤</span><div className="document-details"><strong>{doc.file_name}</strong><span>{formatSize(doc.size_bytes)} · {doc.category || "Chưa phân loại"}{doc.document_number ? ` · ${doc.document_number}` : ""}{doc.supersedes_number ? ` · Thay thế số ${doc.supersedes_number}` : doc.supersedes_document ? ` · Thay thế ${doc.supersedes_document}` : ""}{doc.related_document ? ` · Sửa đổi của ${doc.related_document}` : ""}{doc.effective_from || doc.effective_until ? ` · Hiệu lực ${doc.effective_from || "không rõ"}–${doc.effective_until || "không thời hạn"}` : ""}</span></div><span className={`document-status ${doc.index_status === "pending" ? "pending" : "active"}`}>{doc.index_status === "pending" ? "Chờ lập chỉ mục" : "Đang dùng"}</span></article>)}
+            {activeDocs.map((doc) => <article className="admin-document-row" key={doc.file_name}><span className="document-file-icon">▤</span><div className="document-details"><strong>{doc.file_name}</strong><span>{formatSize(doc.size_bytes)} · {doc.category || "Chưa phân loại"}{doc.document_number ? ` · ${doc.document_number}` : ""}{doc.supersedes_number ? ` · Thay thế số ${doc.supersedes_number}` : doc.supersedes_document ? ` · Thay thế ${doc.supersedes_document}` : ""}{doc.related_document ? ` · Sửa đổi của ${doc.related_document}` : ""}{doc.effective_from || doc.effective_until ? ` · Hiệu lực ${doc.effective_from || "không rõ"}–${doc.effective_until || "không thời hạn"}` : ""}</span></div><span className={`document-status ${doc.index_status === "pending" ? "pending" : "active"}`}>{doc.index_status === "pending" ? "Chờ lập chỉ mục" : "Đang dùng"}</span>
+              {doc.change_type === "amendment" && <div className="amendment-review">
+                <strong>Đối chiếu phiên bản: {doc.revision_status === "approved" ? "Đã duyệt" : doc.revision_status === "review_required" ? "Chờ bạn duyệt" : "Chưa phân tích"}</strong>
+                {doc.revision_status !== "approved" && <button type="button" className="secondary-button" disabled={busy || analyzingFile === doc.file_name} onClick={() => handleAnalyzeAmendment(doc.file_name)}>{analyzingFile === doc.file_name ? "AI đang phân tích…" : doc.revision_analysis ? "Phân tích lại bằng AI" : "Phân tích với AI"}</button>}
+                {doc.revision_analysis?.map((item) => <div className="revision-proposal" key={item.new_chunk_id}>
+                  <div><b>{item.classification.toUpperCase()}</b> · trang mới {item.new_page_number || "?"}{item.new_article ? ` · ${item.new_article}` : ""} · tin cậy {Math.round((item.confidence || 0) * 100)}%</div>
+                  <p><b>Đoạn mới:</b> {item.new_text}</p><p>{item.rationale}</p>
+                  {item.candidates?.map((old) => { const selected = approvedByFile[doc.file_name] ?? (doc.revision_analysis || []).flatMap((proposal) => proposal.classification === "replace" ? proposal.superseded_chunk_ids : []); return <label className="revision-old-chunk" key={old.chunk_id}><input type="checkbox" disabled={item.classification !== "replace" || doc.revision_status === "approved"} checked={selected.includes(old.chunk_id)} onChange={(event) => setApprovedByFile((current) => ({ ...current, [doc.file_name]: event.target.checked ? [...new Set([...selected, old.chunk_id])] : selected.filter((id) => id !== old.chunk_id) }))} /><span><b>Đoạn cũ · trang {old.page_number || "?"}{old.article ? ` · ${old.article}` : ""}</b><br />{old.text}</span></label>; })}
+                </div>)}
+                {doc.revision_status === "review_required" && <button type="button" className="primary-button" disabled={busy} onClick={() => handleApproveAmendment(doc.file_name)}>{busy ? "Đang cập nhật…" : `Duyệt lựa chọn & cập nhật chỉ mục (${(approvedByFile[doc.file_name] || doc.revision_analysis.flatMap((item) => item.classification === "replace" ? item.superseded_chunk_ids : [])).length})`}</button>}
+              </div>}
+            </article>)}
           </div>
           {archive.length > 0 && <details className="admin-archive"><summary>Bản cũ đã lưu trữ ({archive.length})</summary>{archive.map((doc) => <div className="archive-row" key={`${doc.file_name}-${doc.modified_at}`}>{doc.file_name}<span>{new Date(doc.modified_at).toLocaleString("vi-VN")}</span></div>)}</details>}
         </div>
