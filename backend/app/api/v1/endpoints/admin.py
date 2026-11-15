@@ -6,6 +6,7 @@ import os
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
+from uuid import uuid4
 
 from fastapi import APIRouter, Depends, File, Form, Header, HTTPException, UploadFile
 from starlette.concurrency import run_in_threadpool
@@ -126,3 +127,36 @@ async def reindex_documents():
             info["index_status"] = "active"
     _save_registry(registry)
     return {"success": True, "message": "Đã cập nhật kho tài liệu. Các file hiện hành có thể được dùng trong câu trả lời."}
+
+
+@router.post("/admin/documents/delete", summary="Xóa tài liệu khỏi kho hiện hành", dependencies=[Depends(require_admin)])
+async def delete_document(file_name: str = Form(...)):
+    raw_dir = Path(settings.RAG_RAW_DIR)
+    if Path(file_name).name != file_name or Path(file_name).suffix.lower() not in {".pdf", ".docx"}:
+        raise HTTPException(status_code=422, detail="Tên file không hợp lệ.")
+    source = raw_dir / file_name
+    if not source.is_file():
+        raise HTTPException(status_code=404, detail="Không tìm thấy tài liệu đang dùng.")
+
+    archive_dir = raw_dir.parent / "archive"
+    archive_dir.mkdir(parents=True, exist_ok=True)
+    stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+    archived = archive_dir / f"{stamp}-{uuid4().hex[:8]}-{file_name}"
+    registry = _registry()
+    previous_info = registry.pop(file_name, None)
+    try:
+        os.replace(source, archived)
+        _save_registry(registry)
+        from rag_project.pipeline import main as run_pipeline
+        result = await run_in_threadpool(run_pipeline)
+        if result != 0:
+            raise RuntimeError("pipeline failed")
+    except Exception as exc:
+        if archived.exists() and not source.exists():
+            os.replace(archived, source)
+        if previous_info is not None:
+            registry[file_name] = previous_info
+        _save_registry(registry)
+        raise HTTPException(status_code=422, detail="Chưa xóa được tài liệu vì cập nhật chỉ mục thất bại. File đã được khôi phục vào kho đang dùng.") from exc
+
+    return {"success": True, "message": f"Đã xóa {file_name} khỏi kho và cập nhật chỉ mục. Bản sao được giữ trong kho lưu trữ."}

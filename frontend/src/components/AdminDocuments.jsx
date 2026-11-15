@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { getAdminDocuments, reindexAdminDocuments, uploadAdminDocument } from "../services/adminService";
+import { deleteAdminDocument, getAdminDocuments, reindexAdminDocuments, uploadAdminDocument } from "../services/adminService";
 
 const TOKEN_KEY = "uniassist-admin-token";
 const formatSize = (size) => size < 1024 * 1024 ? `${(size / 1024).toFixed(0)} KB` : `${(size / (1024 * 1024)).toFixed(1)} MB`;
@@ -102,6 +102,23 @@ export default function AdminDocuments() {
     }
   }
 
+  async function handleDelete(doc) {
+    if (!window.confirm(`Xóa “${doc.file_name}” khỏi kho đang dùng? Bản sao sẽ được giữ trong kho lưu trữ.`)) return;
+    setBusy(true);
+    setError("");
+    setNotice(`Đang xóa ${doc.file_name} khỏi kho và cập nhật chỉ mục…`);
+    try {
+      const result = await deleteAdminDocument(token, doc.file_name);
+      setNotice(result.message);
+      await refreshDocs();
+    } catch (err) {
+      setError(err.message);
+      setNotice("");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   if (!token) {
     return (
       <section className="admin-page">
@@ -158,6 +175,7 @@ export default function AdminDocuments() {
               <span className="document-file-icon">▤</span>
               <div className="document-details"><strong>{doc.file_name}</strong><span>{formatSize(doc.size_bytes)}</span></div>
               <span className={`document-status ${doc.index_status === "pending" ? "pending" : "active"}`}>{doc.index_status === "pending" ? "Chờ cập nhật" : "Đang dùng"}</span>
+              <button className="secondary-button" type="button" disabled={busy} onClick={() => handleDelete(doc)}>Xóa</button>
             </article>)}
           </div>
         </div>

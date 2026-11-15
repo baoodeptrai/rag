@@ -88,10 +88,11 @@ Mặc định giao diện ở <http://localhost:5173> và gọi API tại `http:
 
 ## Quản lý tài liệu
 
-Trong giao diện, mở **Quản lý tài liệu** và nhập giá trị `ADMIN_API_TOKEN` từ `backend/.env`. Trang quản trị chỉ có thao tác thêm PDF/DOCX, thay một file hiện hành bằng file mới và cập nhật kho tài liệu. Các endpoint quản trị yêu cầu token; không đặt token trong frontend hoặc đưa token vào tài liệu công khai.
+Trong giao diện, mở **Quản lý tài liệu** và nhập giá trị `ADMIN_API_TOKEN` từ `backend/.env`. Trang quản trị có thao tác thêm PDF/DOCX, thay một file hiện hành bằng file mới, xóa khỏi kho đang dùng và cập nhật kho tài liệu. Khi xóa, giao diện yêu cầu xác nhận; file được chuyển vào kho lưu trữ và chỉ mục được dựng lại. Các endpoint quản trị yêu cầu token; không đặt token trong frontend hoặc đưa token vào tài liệu công khai.
 
 - **Thêm tài liệu:** tải file mới lên kho rồi cập nhật chỉ mục.
 - **Thay tài liệu:** chọn bản hiện hành cần thay; bản cũ được lưu trữ và chỉ mục tự dựng lại.
+- **Xóa tài liệu:** bấm **Xóa** cạnh file và xác nhận. File được gỡ khỏi kho đang dùng, lưu bản sao trong `backend/data/archive` và dựng lại chỉ mục để chatbot không truy xuất file đó nữa.
 - **Thay tài liệu:** chọn file hiện hành trong danh sách, tải file PDF/DOCX mới. Bản cũ được lưu vào `backend/data/archive`; hệ thống tự cập nhật chỉ mục sau khi thay.
 
 Khi có nhiều tài liệu mới, có thể tải lần lượt rồi bấm **Cập nhật kho** một lần. Khi thay một file, chọn đúng tài liệu cũ; bản cũ được lưu trữ và index được dựng lại ngay. Có thể đặt nguồn tài liệu ở vị trí khác bằng `RAG_RAW_DIR` trong `backend/.env`. Chưa có crawler/lịch tự đồng bộ vì cần cấu hình URL/API nguồn chính thức.

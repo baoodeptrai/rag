@@ -28,3 +28,9 @@ export function uploadAdminDocument(token, formData) {
 export function reindexAdminDocuments(token) {
   return adminRequest("/api/admin/reindex", token, { method: "POST" });
 }
+
+export function deleteAdminDocument(token, fileName) {
+  const body = new FormData();
+  body.append("file_name", fileName);
+  return adminRequest("/api/admin/documents/delete", token, { method: "POST", body });
+}
