@@ -202,9 +202,6 @@ function App() {
         <button className={`nav-item ${activeTab === "chat" ? "selected" : ""}`} onClick={() => setActiveTab("chat")}>
           <span>▤</span> Trợ lý sinh viên
         </button>
-        <button className={`nav-item ${activeTab === "sources" ? "selected" : ""}`} onClick={() => setActiveTab("sources")}>
-          <span>▧</span> Nguồn tri thức
-        </button>
         <button className={`nav-item ${activeTab === "admin" ? "selected" : ""}`} onClick={() => setActiveTab("admin")}>
           <span>⚙</span> Quản lý tài liệu
         </button>
@@ -232,7 +229,7 @@ function App() {
         <header className="topbar">
           <div>
             <div className="breadcrumb">Không gian học tập / {activeTab === "admin" ? "Quản trị" : "Trợ lý AI"}</div>
-            <h1>{activeTab === "chat" ? "Trợ lý sinh viên" : activeTab === "admin" ? "Quản lý tài liệu" : "Nguồn tri thức"}</h1>
+            <h1>{activeTab === "admin" ? "Quản lý tài liệu" : "Trợ lý sinh viên"}</h1>
           </div>
           <div className="connection-status">
             <span className={`status-dot ${isDemoMode() ? "demo-dot" : "api-dot"}`} />
@@ -244,14 +241,6 @@ function App() {
 
         {activeTab === "admin" ? (
           <AdminDocuments />
-        ) : activeTab === "sources" ? (
-          <section className="source-overview">
-            <div className="welcome-icon">▤</div>
-            <h2>Nguồn tri thức</h2>
-            <p>Nguồn tài liệu chỉ xuất hiện sau khi Backend trả về citations/sources hợp lệ.</p>
-            <div className="notice">Frontend không tự tạo tên tài liệu, số trang hoặc liên kết khi API chưa cung cấp dữ liệu thật.</div>
-            <button className="primary-button" onClick={() => setActiveTab("chat")}>Quay lại trò chuyện</button>
-          </section>
         ) : (
           <ChatWindow
             messages={messages}
