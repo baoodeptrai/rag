@@ -44,16 +44,31 @@ Mở `backend/.env`, đặt `ADMIN_API_TOKEN` thành một chuỗi bí mật ri�
 
 ### 2. Cấu hình Ollama
 
-Cài và khởi động Ollama. Mặc định `ORCHESTRATOR_MODEL=qwen3:4b` phân tích ý định và chuẩn hóa truy vấn trước khi tìm kiếm; `LLM_MODEL=qwen2.5:7b` tổng hợp câu trả lời. Các model này có thể đổi sang tag 4B/7B khác trong Ollama nếu máy phù hợp. Tải mọi model đã cấu hình:
+Cài và khởi động Ollama. Cấu hình mặc định dùng một model `LLM_MODEL=qwen2.5:7b` để trả lời; bước điều phối Qwen3 4B tắt mặc định nhằm giảm một lượt gọi model. Tải model trả lời:
 
 ```powershell
-ollama pull qwen3:4b
 ollama pull qwen2.5:7b
 ```
 
 Nếu đổi một trong hai model, chạy `ollama pull <tên-model>` tương ứng. Backend chỉ gọi Ollama trên `127.0.0.1`; không gửi prompt tới dịch vụ LLM bên ngoài. Embedding dùng `sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2`; tải/cache model này trước khi lập chỉ mục. Sau khi tải đủ model và thư viện, inference có thể chạy offline. Xem các tag tại [thư viện model Ollama](https://ollama.com/library/qwen2.5).
 
-Luồng hỏi đáp: Qwen local phân loại ý định và chuẩn hóa câu truy vấn → hybrid retrieval bắt buộc hỏi Qdrant và kết hợp BM25 → model trả lời chỉ nhận hai chunks đầu. Chỉ các chunks đưa vào model mới được trả thành citations; khi model lỗi, hệ thống không gắn citation vào thông báo lỗi. Nếu Qdrant/collection chưa sẵn sàng, API báo lỗi index thay vì âm thầm chạy BM25-only. Nếu không có bằng chứng đủ điểm, model trả lời không tìm thấy căn cứ. Khi model điều phối lỗi, hệ thống ghi log và truy xuất bằng câu hỏi gốc; vẫn không gọi dịch vụ bên ngoài. Hai bước gọi Ollama tuần tự nên độ trễ tăng, nhất là khi chạy CPU.
+Luồng hỏi đáp: câu gốc → hybrid retrieval bắt buộc kết hợp Qdrant và BM25 → Qwen local trả lời dựa trên tối đa `ANSWER_CONTEXT_CHUNKS` đoạn nguồn. Chỉ các chunks đưa vào model mới được trả thành citations; khi model lỗi, hệ thống không gắn citation vào thông báo lỗi. Nếu Qdrant/collection chưa sẵn sàng, API báo lỗi index thay vì âm thầm chạy BM25-only. Có thể bật `QUERY_ORCHESTRATOR_ENABLED=true` để thêm bước Qwen3 chuẩn hóa câu hỏi, nhưng mỗi câu sẽ chậm hơn do thêm một lượt gọi.
+
+#### Cấu hình ưu tiên chất lượng trên máy đủ RAM/VRAM
+
+Trong `backend/.env`, dùng cấu hình sau rồi khởi động lại backend:
+
+```dotenv
+LLM_MODEL=qwen2.5:7b
+QUERY_ORCHESTRATOR_ENABLED=false
+TOP_K=5
+ANSWER_CONTEXT_CHUNKS=5
+LLM_NUM_CTX=8192
+ANSWER_MAX_TOKENS=450
+OLLAMA_KEEP_ALIVE=30m
+```
+
+Nếu máy thiếu bộ nhớ hoặc phản hồi chậm, giảm `LLM_NUM_CTX` về `4096`, `ANSWER_CONTEXT_CHUNKS` về `3` và `ANSWER_MAX_TOKENS` về `220`. Lệnh `ollama ps` cho biết model đang chạy trên CPU hay GPU; nếu máy có GPU tương thích, Ollama thường tự sử dụng nó. Lần đầu sau khi model chưa được nạp có thể chậm; `OLLAMA_KEEP_ALIVE=30m` giữ model trong bộ nhớ trong 30 phút sau mỗi lượt chat để các câu tiếp theo khởi động nhanh hơn.
 
 ### 3. Thêm tài liệu và lập chỉ mục
 
@@ -105,8 +120,9 @@ Khi có nhiều tài liệu mới, có thể tải lần lượt rồi bấm **C
 | `BACKEND_CORS_ORIGINS` | `backend/.env` | Các origin frontend được phép gọi API |
 | `RAG_RAW_DIR` | `backend/.env` | Thư mục tài liệu nguồn; mặc định `backend/data/raw` |
 | `MAX_FILE_SIZE_MB`, `ALLOWED_EXTENSIONS` | `backend/.env` | Giới hạn upload và loại file được nhận |
-| `EMBEDDING_MODEL`, `TOP_K` | `backend/.env` | Model embedding và số đoạn truy xuất |
-| `LLM_BASE_URL`, `LLM_MODEL`, `ORCHESTRATOR_MODEL`, `LLM_TIMEOUT` | `backend/.env` | Ollama local, model trả lời, model phân tích câu hỏi và timeout |
+| `EMBEDDING_MODEL`, `TOP_K`, `ANSWER_CONTEXT_CHUNKS` | `backend/.env` | Model embedding, số đoạn truy xuất và số đoạn đưa vào model trả lời |
+| `LLM_BASE_URL`, `LLM_MODEL`, `QUERY_ORCHESTRATOR_ENABLED`, `ORCHESTRATOR_MODEL`, `LLM_TIMEOUT` | `backend/.env` | Ollama local, model trả lời, bật/tắt bước điều phối tùy chọn và timeout |
+| `LLM_NUM_CTX`, `ANSWER_MAX_TOKENS`, `OLLAMA_KEEP_ALIVE` | `backend/.env` | Kích thước ngữ cảnh, độ dài tối đa câu trả lời và thời gian giữ model trong bộ nhớ |
 | `ADMIN_API_TOKEN` | `backend/.env` | Token bảo vệ API quản trị tài liệu |
 | `VITE_API_BASE_URL` | `frontend/.env` | Địa chỉ backend mà frontend gọi |
 | `VITE_DEMO_MODE` | `frontend/.env` | Bật/tắt dữ liệu demo; để `false` khi dùng RAG thật |

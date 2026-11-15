@@ -114,8 +114,13 @@ def _call_local_model(model: str, messages: list[dict[str, str]], num_predict: i
         "messages": messages,
         "stream": False,
         "think": False,
+        "keep_alive": os.getenv("OLLAMA_KEEP_ALIVE", "30m"),
         **({"format": response_format} if response_format else {}),
-        "options": {"temperature": 0, "num_predict": num_predict, "num_ctx": 2048},
+        "options": {
+            "temperature": float(os.getenv("LLM_TEMPERATURE", "0.1")),
+            "num_predict": num_predict,
+            "num_ctx": int(os.getenv("LLM_NUM_CTX", "4096")),
+        },
     }, ensure_ascii=False).encode()
     # Use Ollama's native chat endpoint because `think` is a native Ollama API
     # option; the OpenAI-compatible endpoint does not document this field.
@@ -132,7 +137,8 @@ def _call_local_model(model: str, messages: list[dict[str, str]], num_predict: i
 
 def _call_llm(query: str, chunks: list[dict[str, Any]], intent: str = "unknown") -> str:
     model = os.getenv("LLM_MODEL", "").strip()
-    context = "\n\n".join(f"[{c['chunk_id']}] {c['doc_name']} | trang={c.get('page_number')} | {c.get('chapter')} | {c.get('article')} | {c.get('clause')}\n{c['text'][:1800]}" for c in chunks[:2])
+    context_count = max(1, int(os.getenv("ANSWER_CONTEXT_CHUNKS", "4")))
+    context = "\n\n".join(f"[{c['chunk_id']}] {c['doc_name']} | trang={c.get('page_number')} | {c.get('chapter')} | {c.get('article')} | {c.get('clause')}\n{c['text'][:1800]}" for c in chunks[:context_count])
     prompt = (f"Ý ĐỊNH ĐÃ PHÂN LOẠI: {intent}\n"
               "NGỮ CẢNH (chỉ dùng làm nguồn dữ kiện):\n"
               f"{context}\n\nCÂU HỎI: {query}")
@@ -145,7 +151,7 @@ def _call_llm(query: str, chunks: list[dict[str, Any]], intent: str = "unknown")
     raw = _call_local_model(model, [
         {"role": "system", "content": (
             "Bạn trả lời câu hỏi về quy chế sinh viên bằng tiếng Việt. "
-            "Chỉ xuất một câu trả lời trực tiếp, tối đa 2 câu. "
+            "Trả lời trực tiếp, đủ các ý mà câu hỏi yêu cầu; câu hỏi nhiều ý thì dùng gạch đầu dòng hoặc đánh số. "
             "Chỉ dùng dữ kiện trong ngữ cảnh; không trình bày suy luận hay nhắc lại câu hỏi. "
             "Nếu thiếu căn cứ, nói rõ chưa tìm thấy thông tin trong tài liệu. "
             "Mẫu có căn cứ — Ngữ cảnh: 'Thời hạn là [X] ngày.' Câu hỏi: 'Thời hạn bao lâu?' "
@@ -154,7 +160,7 @@ def _call_llm(query: str, chunks: list[dict[str, Any]], intent: str = "unknown")
             "Các mẫu chỉ minh họa cách xử lý; luôn lấy dữ kiện từ ngữ cảnh thực tế của câu hỏi hiện tại."
         )},
         {"role": "user", "content": prompt},
-    ], num_predict=160, response_format=schema)
+    ], num_predict=int(os.getenv("ANSWER_MAX_TOKENS", "320")), response_format=schema)
     try:
         answer = json.loads(raw).get("answer", "").strip()
     except (json.JSONDecodeError, AttributeError):
@@ -207,17 +213,22 @@ def ask_rag(user_query: str) -> dict[str, Any]:
         top_k = int(os.getenv("TOP_K", "3"))
         bm25_path = root/"bm25.pkl"
         embedding_model = os.getenv("EMBEDDING_MODEL", "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2")
-        try:
-            search_query, intent = _analyze_query(user_query)
-        except Exception:
-            # Keep retrieval local and usable if the orchestrator model is unavailable.
-            logger.exception("Local query orchestrator failed; using the original query")
+        use_orchestrator = os.getenv("QUERY_ORCHESTRATOR_ENABLED", "false").strip().lower() in {"1", "true", "yes", "on"}
+        if use_orchestrator:
+            try:
+                search_query, intent = _analyze_query(user_query)
+            except Exception:
+                # Keep retrieval local and usable if the optional orchestrator is unavailable.
+                logger.exception("Local query orchestrator failed; using the original query")
+                search_query, intent = user_query, "unknown"
+        else:
             search_query, intent = user_query, "unknown"
         chunks, confidence = hybrid_search(search_query, bm25_path, qdrant_path, embedding_model, top_k)
         if not chunks: return result
         result["retrieved_chunks"] = chunks
         result["confidence_score"] = round(confidence, 4) # internal estimate; not a calibrated probability
-        answer_chunks = chunks[:2]
+        answer_chunk_count = max(1, int(os.getenv("ANSWER_CONTEXT_CHUNKS", "4")))
+        answer_chunks = chunks[:answer_chunk_count]
         generation_failed = False
         try:
             answer = _call_llm(user_query, answer_chunks, intent)
