@@ -817,11 +817,32 @@ button:disabled {
 .admin-alert { margin-bottom: 14px; padding: 11px 13px; border: 1px solid; border-radius: 9px; font-size: 12px; line-height: 1.6; }
 .admin-alert.error { border-color: #f0cdcd; background: #fff5f5; color: #a23e3e; }
 .admin-alert.success { border-color: #cde8d8; background: #f1fbf5; color: #397451; }
+.reader-page { display: flex; min-height: 0; flex: 1; flex-direction: column; gap: 18px; padding: 24px 28px 30px; }
+.reader-heading { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+.reader-heading h2 { margin: 5px 0 6px; color: #20354f; font-size: 23px; }
+.reader-heading p { margin: 0; color: #718096; font-size: 13px; }
+.reader-open-link { flex: 0 0 auto; text-decoration: none; }
+.reader-layout { display: grid; min-height: 0; flex: 1; grid-template-columns: minmax(210px, 270px) minmax(0, 1fr); gap: 14px; }
+.reader-list { display: flex; max-height: 72vh; flex-direction: column; gap: 4px; overflow: auto; padding: 8px; border: 1px solid #e4eaf1; border-radius: 12px; background: #fff; }
+.reader-file { display: flex; width: 100%; align-items: flex-start; gap: 10px; padding: 10px; border: 0; border-radius: 8px; background: transparent; color: #68798e; cursor: pointer; text-align: left; }
+.reader-file:hover, .reader-file.selected { background: #edf3fa; color: #234e7c; }
+.reader-file > span:first-child { flex: 0 0 auto; }
+.reader-file > span:last-child { display: grid; min-width: 0; gap: 5px; }
+.reader-file strong { overflow-wrap: anywhere; font-size: 11px; }
+.reader-file small { color: #8492a4; font-size: 10px; }
+.reader-frame-wrap { min-width: 0; min-height: 58vh; overflow: hidden; border: 1px solid #e4eaf1; border-radius: 12px; background: #fff; }
+.reader-frame { display: block; width: 100%; height: 72vh; min-height: 450px; border: 0; }
 @media (max-width: 620px) {
   .admin-page { padding: 20px 13px 34px; }
   .admin-grid { grid-template-columns: 1fr; }
   .admin-title-row { align-items: flex-start; }
   .admin-title-row h2 { font-size: 21px; }
+  .reader-page { padding: 18px 13px 24px; }
+  .reader-heading { align-items: flex-start; flex-direction: column; }
+  .reader-layout { grid-template-columns: 1fr; }
+  .reader-list { max-height: 180px; }
+  .reader-frame-wrap { min-height: 55vh; }
+  .reader-frame { height: 65vh; min-height: 380px; }
   .admin-card { padding: 16px; }
   .admin-list-heading { flex-direction: column; }
   .admin-list-heading .primary-button { max-width: none; width: 100%; }

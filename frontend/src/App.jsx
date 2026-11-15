@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import ChatWindow from "./components/ChatWindow";
 import AdminDocuments from "./components/AdminDocuments";
+import DocumentLibrary from "./components/DocumentLibrary";
 import { getApiBaseUrl, isDemoMode, sendChatMessage } from "./services/chatService";
 import "./App.css";
 
@@ -43,6 +44,7 @@ function App() {
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [notice, setNotice] = useState("");
+  const [activeTab, setActiveTab] = useState("chat");
   const abortRef = useRef(null);
 
   const activeConversation = useMemo(
@@ -79,6 +81,7 @@ function App() {
     setInput("");
     setLoading(false);
     setNotice("");
+    setActiveTab("chat");
   }
 
   function chooseConversation(conversation) {
@@ -87,6 +90,7 @@ function App() {
     setInput("");
     setLoading(false);
     setNotice("");
+    setActiveTab("chat");
   }
 
   function deleteConversation(id) {
@@ -201,9 +205,12 @@ function App() {
         </button>
 
         <div className="sidebar-label">KHÔNG GIAN LÀM VIỆC</div>
-        <a className="nav-item selected" href="/">
+        <button className={`nav-item ${activeTab === "chat" ? "selected" : ""}`} onClick={() => setActiveTab("chat")}>
           <span>▤</span> Trợ lý sinh viên
-        </a>
+        </button>
+        <button className={`nav-item ${activeTab === "documents" ? "selected" : ""}`} onClick={() => setActiveTab("documents")}>
+          <span>▧</span> Đọc tài liệu PDF
+        </button>
 
         <div className="sidebar-label history-label">GẦN ĐÂY</div>
         <div className="conversation-list">
@@ -227,8 +234,8 @@ function App() {
       <main className="main-panel">
         <header className="topbar">
           <div>
-            <div className="breadcrumb">Không gian học tập / Trợ lý AI</div>
-            <h1>Trợ lý sinh viên</h1>
+            <div className="breadcrumb">Không gian học tập / {activeTab === "documents" ? "Tài liệu tham khảo" : "Trợ lý AI"}</div>
+            <h1>{activeTab === "documents" ? "Đọc tài liệu PDF" : "Trợ lý sinh viên"}</h1>
           </div>
           <div className="connection-status">
             <span className={`status-dot ${isDemoMode() ? "demo-dot" : "api-dot"}`} />
@@ -238,14 +245,14 @@ function App() {
 
         {notice && <div className="app-notice" role="status">{notice}<button onClick={() => setNotice("")} aria-label="Đóng thông báo">×</button></div>}
 
-        <ChatWindow
+        {activeTab === "documents" ? <DocumentLibrary /> : <ChatWindow
           messages={messages}
           input={input}
           setInput={setInput}
           loading={loading}
           onSend={sendMessage}
           onSubmit={handleSubmit}
-        />
+        />}
       </main>
     </div>
   );

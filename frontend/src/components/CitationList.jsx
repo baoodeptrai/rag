@@ -1,3 +1,5 @@
+import { getPublicPdfUrl } from "../services/chatService";
+
 export default function CitationList({ citations = [] }) {
   if (!citations.length) return null;
 
@@ -15,6 +17,9 @@ export default function CitationList({ citations = [] }) {
 
           const safeUrl = typeof citation.url === "string" &&
             /^https?:\/\//i.test(citation.url);
+          const pdfUrl = typeof citation.doc_name === "string" && citation.doc_name.toLowerCase().endsWith(".pdf")
+            ? `${getPublicPdfUrl(citation.doc_name)}${citation.page_number ? `#page=${citation.page_number}` : ""}`
+            : null;
 
           return (
             <article className="citation-card" key={citation.id || index}>
@@ -28,6 +33,7 @@ export default function CitationList({ citations = [] }) {
                     Mở tài liệu ↗
                   </a>
                 )}
+                {pdfUrl && <a href={pdfUrl} target="_blank" rel="noreferrer">Mở PDF tại trang trích dẫn ↗</a>}
               </div>
             </article>
           );

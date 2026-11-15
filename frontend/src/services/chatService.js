@@ -113,6 +113,17 @@ export function isDemoMode() {
   return DEMO_MODE;
 }
 
+export async function getPublicPdfDocuments() {
+  const response = await fetch(`${API_BASE_URL}/api/documents`);
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(payload.detail || "Không tải được danh sách tài liệu.");
+  return payload.documents || [];
+}
+
+export function getPublicPdfUrl(fileName) {
+  return `${API_BASE_URL}/api/documents/pdf?file_name=${encodeURIComponent(fileName)}`;
+}
+
 export function getApiBaseUrl() {
   return API_BASE_URL;
 }
