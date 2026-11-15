@@ -137,7 +137,7 @@ def _call_local_model(model: str, messages: list[dict[str, str]], num_predict: i
 
 def _call_llm(query: str, chunks: list[dict[str, Any]], intent: str = "unknown") -> str:
     model = os.getenv("LLM_MODEL", "").strip()
-    context_count = max(1, int(os.getenv("ANSWER_CONTEXT_CHUNKS", "4")))
+    context_count = max(1, int(os.getenv("ANSWER_CONTEXT_CHUNKS", "5")))
     context = "\n\n".join(f"[{c['chunk_id']}] {c['doc_name']} | trang={c.get('page_number')} | {c.get('chapter')} | {c.get('article')} | {c.get('clause')}\n{c['text'][:1800]}" for c in chunks[:context_count])
     prompt = (f"Ý ĐỊNH ĐÃ PHÂN LOẠI: {intent}\n"
               "NGỮ CẢNH (chỉ dùng làm nguồn dữ kiện):\n"
@@ -151,16 +151,15 @@ def _call_llm(query: str, chunks: list[dict[str, Any]], intent: str = "unknown")
     raw = _call_local_model(model, [
         {"role": "system", "content": (
             "Bạn trả lời câu hỏi về quy chế sinh viên bằng tiếng Việt. "
-            "Trả lời trực tiếp, đủ các ý mà câu hỏi yêu cầu; câu hỏi nhiều ý thì dùng gạch đầu dòng hoặc đánh số. "
-            "Chỉ dùng dữ kiện trong ngữ cảnh; không trình bày suy luận hay nhắc lại câu hỏi. "
-            "Nếu thiếu căn cứ, nói rõ chưa tìm thấy thông tin trong tài liệu. "
-            "Mẫu có căn cứ — Ngữ cảnh: 'Thời hạn là [X] ngày.' Câu hỏi: 'Thời hạn bao lâu?' "
-            "Câu trả lời: 'Thời hạn là [X] ngày.' Mẫu thiếu căn cứ — nếu ngữ cảnh không nói về tỷ giá "
-            "mà câu hỏi hỏi tỷ giá, câu trả lời là 'Tài liệu hiện có chưa cung cấp thông tin về tỷ giá.' "
-            "Các mẫu chỉ minh họa cách xử lý; luôn lấy dữ kiện từ ngữ cảnh thực tế của câu hỏi hiện tại."
+            "Đọc toàn bộ câu hỏi và các đoạn nguồn trước khi trả lời. Trả lời cụ thể, đủ thông tin liên quan; "
+            "không giới hạn ở một câu hoặc một ý. Với câu hỏi giải thích/cách làm, nêu lần lượt các bước, "
+            "điều kiện, thời hạn, giấy tờ và ngoại lệ nếu tài liệu có đề cập. Câu hỏi nhiều ý thì dùng gạch đầu dòng "
+            "hoặc đánh số. Chỉ dùng dữ kiện trong nguồn, không tự bổ sung kiến thức ngoài tài liệu. "
+            "Nếu nguồn chỉ trả lời được một phần, hãy trả lời phần có căn cứ rồi nói rõ phần nào chưa có thông tin; "
+            "đừng từ chối toàn bộ câu hỏi chỉ vì thiếu một chi tiết. Nêu tên tài liệu/điều khoản khi hữu ích."
         )},
         {"role": "user", "content": prompt},
-    ], num_predict=int(os.getenv("ANSWER_MAX_TOKENS", "320")), response_format=schema)
+    ], num_predict=int(os.getenv("ANSWER_MAX_TOKENS", "600")), response_format=schema)
     try:
         answer = json.loads(raw).get("answer", "").strip()
     except (json.JSONDecodeError, AttributeError):
@@ -210,7 +209,7 @@ def ask_rag(user_query: str) -> dict[str, Any]:
         qdrant_path = Path(os.getenv("QDRANT_PATH", str(BACKEND_ROOT / "data" / "qdrant")))
         # The local orchestrator normalizes the question first; the answer model
         # is called only after retrieval returns evidence.
-        top_k = int(os.getenv("TOP_K", "3"))
+        top_k = int(os.getenv("TOP_K", "5"))
         bm25_path = root/"bm25.pkl"
         embedding_model = os.getenv("EMBEDDING_MODEL", "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2")
         use_orchestrator = os.getenv("QUERY_ORCHESTRATOR_ENABLED", "false").strip().lower() in {"1", "true", "yes", "on"}
@@ -227,7 +226,7 @@ def ask_rag(user_query: str) -> dict[str, Any]:
         if not chunks: return result
         result["retrieved_chunks"] = chunks
         result["confidence_score"] = round(confidence, 4) # internal estimate; not a calibrated probability
-        answer_chunk_count = max(1, int(os.getenv("ANSWER_CONTEXT_CHUNKS", "4")))
+        answer_chunk_count = max(1, int(os.getenv("ANSWER_CONTEXT_CHUNKS", "5")))
         answer_chunks = chunks[:answer_chunk_count]
         generation_failed = False
         try:

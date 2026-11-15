@@ -54,7 +54,7 @@ Nếu đổi một trong hai model, chạy `ollama pull <tên-model>` tương �
 
 Luồng hỏi đáp: câu gốc → hybrid retrieval bắt buộc kết hợp Qdrant và BM25 → Qwen local trả lời dựa trên tối đa `ANSWER_CONTEXT_CHUNKS` đoạn nguồn. Chỉ các chunks đưa vào model mới được trả thành citations; khi model lỗi, hệ thống không gắn citation vào thông báo lỗi. Nếu Qdrant/collection chưa sẵn sàng, API báo lỗi index thay vì âm thầm chạy BM25-only. Có thể bật `QUERY_ORCHESTRATOR_ENABLED=true` để thêm bước Qwen3 chuẩn hóa câu hỏi, nhưng mỗi câu sẽ chậm hơn do thêm một lượt gọi.
 
-#### Cấu hình ưu tiên chất lượng trên máy đủ RAM/VRAM
+#### Cấu hình ưu tiên câu trả lời đầy đủ
 
 Trong `backend/.env`, dùng cấu hình sau rồi khởi động lại backend:
 
@@ -64,11 +64,11 @@ QUERY_ORCHESTRATOR_ENABLED=false
 TOP_K=5
 ANSWER_CONTEXT_CHUNKS=5
 LLM_NUM_CTX=8192
-ANSWER_MAX_TOKENS=450
+ANSWER_MAX_TOKENS=600
 OLLAMA_KEEP_ALIVE=30m
 ```
 
-Nếu máy thiếu bộ nhớ hoặc phản hồi chậm, giảm `LLM_NUM_CTX` về `4096`, `ANSWER_CONTEXT_CHUNKS` về `3` và `ANSWER_MAX_TOKENS` về `220`. Lệnh `ollama ps` cho biết model đang chạy trên CPU hay GPU; nếu máy có GPU tương thích, Ollama thường tự sử dụng nó. Lần đầu sau khi model chưa được nạp có thể chậm; `OLLAMA_KEEP_ALIVE=30m` giữ model trong bộ nhớ trong 30 phút sau mỗi lượt chat để các câu tiếp theo khởi động nhanh hơn.
+Nếu máy thiếu bộ nhớ hoặc phản hồi quá chậm, giảm `LLM_NUM_CTX` về `4096`, `ANSWER_CONTEXT_CHUNKS` về `3` và `ANSWER_MAX_TOKENS` về `300`. Cấu hình trên dùng một model trả lời 7B để tăng độ đầy đủ mà không gọi thêm model điều phối; chạy CPU vẫn sẽ chậm hơn GPU. Lệnh `ollama ps` cho biết model đang chạy trên CPU hay GPU. Lần đầu sau khi model chưa được nạp có thể chậm; `OLLAMA_KEEP_ALIVE=30m` giữ model trong bộ nhớ trong 30 phút sau mỗi lượt chat.
 
 ### 3. Thêm tài liệu và lập chỉ mục
 
