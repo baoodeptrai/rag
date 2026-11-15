@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { getAdminDocuments, reindexAdminDocuments, uploadAdminDocument } from "../services/adminService";
+import { getAdminDocuments, reindexAdminDocuments, updateAdminDocumentMetadata, uploadAdminDocument } from "../services/adminService";
 
 const TOKEN_KEY = "uniassist-admin-token";
 const formatSize = (size) => size < 1024 * 1024 ? `${(size / 1024).toFixed(0)} KB` : `${(size / (1024 * 1024)).toFixed(1)} MB`;
@@ -12,6 +12,16 @@ export default function AdminDocuments() {
   const [changeType, setChangeType] = useState("new");
   const [related, setRelated] = useState("");
   const [category, setCategory] = useState("dao_tao");
+  const [documentNumber, setDocumentNumber] = useState("");
+  const [supersedesNumber, setSupersedesNumber] = useState("");
+  const [publishedAt, setPublishedAt] = useState("");
+  const [effectiveFrom, setEffectiveFrom] = useState("");
+  const [effectiveUntil, setEffectiveUntil] = useState("");
+  const [metadataFile, setMetadataFile] = useState("");
+  const [metadataNumber, setMetadataNumber] = useState("");
+  const [metadataPublishedAt, setMetadataPublishedAt] = useState("");
+  const [metadataEffectiveFrom, setMetadataEffectiveFrom] = useState("");
+  const [metadataEffectiveUntil, setMetadataEffectiveUntil] = useState("");
   const [file, setFile] = useState(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -75,7 +85,7 @@ export default function AdminDocuments() {
     event.preventDefault();
     const formElement = event.currentTarget;
     if (!file) return setError("Chọn file PDF hoặc Word trước khi tải lên.");
-    if (changeType === "replace" && !related) return setError("Chọn tài liệu cũ cần thay thế.");
+    if (changeType === "replace" && !related && !supersedesNumber.trim()) return setError("Chọn tài liệu cũ hoặc nhập số văn bản bị thay thế.");
     setBusy(true);
     setError("");
     setNotice("");
@@ -84,10 +94,20 @@ export default function AdminDocuments() {
     form.append("category", category);
     form.append("change_type", changeType);
     if (related) form.append("related_document", related);
+    if (documentNumber.trim()) form.append("document_number", documentNumber.trim());
+    if (supersedesNumber.trim()) form.append("supersedes_number", supersedesNumber.trim());
+    if (publishedAt) form.append("published_at", publishedAt);
+    if (effectiveFrom) form.append("effective_from", effectiveFrom);
+    if (effectiveUntil) form.append("effective_until", effectiveUntil);
     try {
       const result = await uploadAdminDocument(token, form);
-      setNotice(`${result.file_name} đã được tải lên. Hãy cập nhật chỉ mục để chatbot dùng nội dung mới.`);
+      setNotice(`${result.file_name}: ${result.message}`);
       setFile(null);
+      setDocumentNumber("");
+      setSupersedesNumber("");
+      setPublishedAt("");
+      setEffectiveFrom("");
+      setEffectiveUntil("");
       formElement.reset();
       await refreshDocs();
     } catch (err) {
@@ -108,6 +128,38 @@ export default function AdminDocuments() {
     } catch (err) {
       setError(err.message);
       setNotice("");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  function selectMetadataFile(name) {
+    setMetadataFile(name);
+    const document = activeDocs.find((item) => item.file_name === name);
+    setMetadataNumber(document?.document_number || "");
+    setMetadataPublishedAt(document?.published_at || "");
+    setMetadataEffectiveFrom(document?.effective_from || "");
+    setMetadataEffectiveUntil(document?.effective_until || "");
+  }
+
+  async function handleMetadataUpdate(event) {
+    event.preventDefault();
+    if (!metadataFile) return setError("Chọn tài liệu cần cập nhật metadata.");
+    setBusy(true);
+    setError("");
+    setNotice("");
+    const form = new FormData();
+    form.append("file_name", metadataFile);
+    form.append("document_number", metadataNumber.trim());
+    form.append("published_at", metadataPublishedAt);
+    form.append("effective_from", metadataEffectiveFrom);
+    form.append("effective_until", metadataEffectiveUntil);
+    try {
+      const result = await updateAdminDocumentMetadata(token, form);
+      setNotice(result.message);
+      await refreshDocs();
+    } catch (err) {
+      setError(err.message);
     } finally {
       setBusy(false);
     }
@@ -154,7 +206,7 @@ export default function AdminDocuments() {
           {(changeType === "replace" || changeType === "amendment") && (
             <>
               <label htmlFor="related-document">{changeType === "replace" ? "Bản hiện hành cần thay thế" : "Văn bản gốc liên quan (không bắt buộc)"}</label>
-              <select id="related-document" value={related} onChange={(e) => setRelated(e.target.value)} required={changeType === "replace"}>
+              <select id="related-document" value={related} onChange={(e) => setRelated(e.target.value)} required={changeType === "replace" && !supersedesNumber.trim()}>
                 <option value="">{changeType === "replace" ? "Chọn tài liệu" : "Không chọn"}</option>
                 {activeDocs.map((doc) => <option key={doc.file_name} value={doc.file_name}>{doc.file_name}</option>)}
               </select>
@@ -164,10 +216,21 @@ export default function AdminDocuments() {
           <select id="doc-category" value={category} onChange={(e) => setCategory(e.target.value)}>
             <option value="dao_tao">Đào tạo</option><option value="cong_tac_sinh_vien">Công tác sinh viên</option><option value="hoc_phi_hoc_bong">Học phí, học bổng</option><option value="khac">Khác</option>
           </select>
+          <label htmlFor="document-number">Số/ký hiệu văn bản</label>
+          <input id="document-number" value={documentNumber} onChange={(e) => setDocumentNumber(e.target.value)} placeholder="Ví dụ: 123/TB-HV" />
+          <label htmlFor="supersedes-number">Tự lưu trữ văn bản bị thay thế (nếu có)</label>
+          <input id="supersedes-number" value={supersedesNumber} onChange={(e) => setSupersedesNumber(e.target.value)} placeholder="Nhập số/ký hiệu đang có trong kho" />
+          <div className="admin-help">Khi số này khớp đúng một tài liệu hiện hành, hệ thống lưu trữ bản cũ và tự dựng lại chỉ mục. Cần nhập số văn bản mới ở ô phía trên.</div>
+          <label htmlFor="published-at">Ngày ban hành</label>
+          <input id="published-at" type="date" value={publishedAt} onChange={(e) => setPublishedAt(e.target.value)} />
+          <label htmlFor="effective-from">Hiệu lực từ</label>
+          <input id="effective-from" type="date" value={effectiveFrom} onChange={(e) => setEffectiveFrom(e.target.value)} />
+          <label htmlFor="effective-until">Hiệu lực đến (để trống nếu chưa xác định)</label>
+          <input id="effective-until" type="date" value={effectiveUntil} onChange={(e) => setEffectiveUntil(e.target.value)} />
           <label htmlFor="document-file">File PDF hoặc Word</label>
           <input id="document-file" type="file" accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document" onChange={(e) => setFile(e.target.files?.[0] || null)} required />
           <div className="admin-help">
-            {changeType === "new" && "Tài liệu độc lập sẽ được thêm vào kho hiện hành."}
+            {changeType === "new" && "Tài liệu độc lập sẽ được thêm vào kho hiện hành. Có thể nhập số văn bản bị thay thế ở trường bên trên để hệ thống lưu trữ bản cũ tự động."}
             {changeType === "replace" && "Bản cũ sẽ được lưu trong kho lưu trữ; chỉ bản mới được lập chỉ mục."}
             {changeType === "amendment" && "Giữ nguyên tài liệu gốc và thêm văn bản sửa đổi/phụ lục làm nguồn riêng."}
           </div>
@@ -178,11 +241,30 @@ export default function AdminDocuments() {
           <div className="admin-list-heading"><div><h3>Tài liệu đang dùng</h3><p>{activeDocs.length} tài liệu</p></div><button className="primary-button" type="button" onClick={handleReindex} disabled={busy || activeDocs.length === 0}>{busy ? "Đang cập nhật…" : pendingCount ? `Cập nhật chỉ mục (${pendingCount})` : "Dựng lại chỉ mục"}</button></div>
           <div className="admin-document-list">
             {activeDocs.length === 0 && <div className="admin-empty">Chưa có tài liệu trong kho.</div>}
-            {activeDocs.map((doc) => <article className="admin-document-row" key={doc.file_name}><span className="document-file-icon">▤</span><div className="document-details"><strong>{doc.file_name}</strong><span>{formatSize(doc.size_bytes)} · {doc.category || "Chưa phân loại"}{doc.related_document ? ` · Sửa đổi của ${doc.related_document}` : ""}</span></div><span className={`document-status ${doc.index_status === "pending" ? "pending" : "active"}`}>{doc.index_status === "pending" ? "Chờ lập chỉ mục" : "Đang dùng"}</span></article>)}
+            {activeDocs.map((doc) => <article className="admin-document-row" key={doc.file_name}><span className="document-file-icon">▤</span><div className="document-details"><strong>{doc.file_name}</strong><span>{formatSize(doc.size_bytes)} · {doc.category || "Chưa phân loại"}{doc.document_number ? ` · ${doc.document_number}` : ""}{doc.supersedes_number ? ` · Thay thế số ${doc.supersedes_number}` : doc.supersedes_document ? ` · Thay thế ${doc.supersedes_document}` : ""}{doc.related_document ? ` · Sửa đổi của ${doc.related_document}` : ""}{doc.effective_from || doc.effective_until ? ` · Hiệu lực ${doc.effective_from || "không rõ"}–${doc.effective_until || "không thời hạn"}` : ""}</span></div><span className={`document-status ${doc.index_status === "pending" ? "pending" : "active"}`}>{doc.index_status === "pending" ? "Chờ lập chỉ mục" : "Đang dùng"}</span></article>)}
           </div>
           {archive.length > 0 && <details className="admin-archive"><summary>Bản cũ đã lưu trữ ({archive.length})</summary>{archive.map((doc) => <div className="archive-row" key={`${doc.file_name}-${doc.modified_at}`}>{doc.file_name}<span>{new Date(doc.modified_at).toLocaleString("vi-VN")}</span></div>)}</details>}
         </div>
       </div>
+
+      <form className="admin-card admin-upload-card" onSubmit={handleMetadataUpdate}>
+        <h3>Hiệu chỉnh metadata tài liệu hiện hành</h3>
+        <p>Gán số hiệu/ngày hiệu lực cho tài liệu đã có trong kho. Chỉ mục sẽ được dựng lại để Qdrant nhận metadata mới.</p>
+        <label htmlFor="metadata-file">Tài liệu</label>
+        <select id="metadata-file" value={metadataFile} onChange={(e) => selectMetadataFile(e.target.value)} required>
+          <option value="">Chọn tài liệu</option>
+          {activeDocs.map((doc) => <option key={doc.file_name} value={doc.file_name}>{doc.file_name}</option>)}
+        </select>
+        <label htmlFor="metadata-number">Số/ký hiệu văn bản</label>
+        <input id="metadata-number" value={metadataNumber} onChange={(e) => setMetadataNumber(e.target.value)} />
+        <label htmlFor="metadata-published">Ngày ban hành</label>
+        <input id="metadata-published" type="date" value={metadataPublishedAt} onChange={(e) => setMetadataPublishedAt(e.target.value)} />
+        <label htmlFor="metadata-start">Hiệu lực từ</label>
+        <input id="metadata-start" type="date" value={metadataEffectiveFrom} onChange={(e) => setMetadataEffectiveFrom(e.target.value)} />
+        <label htmlFor="metadata-end">Hiệu lực đến</label>
+        <input id="metadata-end" type="date" value={metadataEffectiveUntil} onChange={(e) => setMetadataEffectiveUntil(e.target.value)} />
+        <button className="primary-button" type="submit" disabled={busy || activeDocs.length === 0}>{busy ? "Đang cập nhật…" : "Lưu metadata và lập chỉ mục"}</button>
+      </form>
     </section>
   );
 }

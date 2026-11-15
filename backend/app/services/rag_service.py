@@ -49,6 +49,10 @@ class RAGService:
             raise RAGServiceException("Hệ thống tri thức AI tạm thời không phản hồi.") from exc
 
         if result.get("error"):
+            detail = str(result["error"])
+            lowered_detail = detail.casefold()
+            if "vector db" in lowered_detail or "collection rag_chunks" in lowered_detail or "embedding_model" in lowered_detail or "metadata của index" in lowered_detail:
+                raise RAGServiceException(detail.split(": ", 1)[-1])
             raise RAGServiceException("Không thể truy vấn chỉ mục RAG. Hãy kiểm tra dữ liệu và cấu hình.")
 
         citations: List[CitationItem] = []

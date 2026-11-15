@@ -20,6 +20,8 @@ data/raw/*
 data/processed/*
 !data/processed/.gitkeep
 data/qdrant/
+data/archive/
+data/document_registry.json
 venv-legacy/
 chroma_db/
 *.db

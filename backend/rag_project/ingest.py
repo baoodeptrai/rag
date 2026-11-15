@@ -78,6 +78,13 @@ def chunk_section(section: dict[str, Any], doc_name: str, page_number: int | Non
 
 def build_chunks(raw_dir: Path, output: Path, max_tokens=600, overlap=80) -> dict[str, Any]:
     files = sorted(p for p in raw_dir.rglob("*") if p.is_file() and p.suffix.lower() in {".pdf", ".docx"})
+    registry_path = raw_dir.parent / "document_registry.json"
+    try:
+        registry = json.loads(registry_path.read_text(encoding="utf-8")) if registry_path.exists() else {}
+    except (json.JSONDecodeError, OSError) as exc:
+        raise ValueError(f"Không thể đọc metadata tài liệu {registry_path}: {exc}") from exc
+    if not isinstance(registry, dict):
+        raise ValueError(f"Metadata tài liệu phải là JSON object: {registry_path}")
     chunks, page_count, errors, duplicates = [], 0, [], []
     seen_content: dict[str, str] = {}
     for path in files:
@@ -89,6 +96,9 @@ def build_chunks(raw_dir: Path, output: Path, max_tokens=600, overlap=80) -> dic
                 duplicates.append({"file": path.name, "duplicate_of": seen_content[content_hash], "content_sha256": content_hash})
                 continue
             seen_content[content_hash] = path.name
+            document_metadata = registry.get(path.name, {})
+            if not isinstance(document_metadata, dict):
+                document_metadata = {}
             context = {"chapter": None, "article": None, "clause": None}
             for page in pages:
                 sections = split_sections(page["text"])
@@ -102,7 +112,13 @@ def build_chunks(raw_dir: Path, output: Path, max_tokens=600, overlap=80) -> dic
                 if not sections and page["text"]:
                     sections = [{"chapter": None, "article": None, "clause": None, "text": page["text"]}]
                 for section in sections:
-                    chunks.extend(chunk_section(section, path.name, page["page_number"], max_tokens, overlap))
+                    rows = chunk_section(section, path.name, page["page_number"], max_tokens, overlap)
+                    for row in rows:
+                        row.update({
+                            key: document_metadata.get(key)
+                            for key in ("category", "document_number", "published_at", "effective_from", "effective_until")
+                        })
+                    chunks.extend(rows)
         except Exception as exc:
             errors.append({"file": path.name, "error": str(exc)})
     output.parent.mkdir(parents=True, exist_ok=True)

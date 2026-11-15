@@ -105,13 +105,28 @@ Khởi động backend local, sau đó chạy `backend/rag_project/run_answer_qu
 
 Các cột chấm để trống có chủ ý. Với mỗi câu trả lời, reviewer điền `answer_correct`, `answer_complete`, `answer_grounded` và `system_refused`. Các cột citation trong answer CSV là **đánh giá cấp phản hồi**: đánh dấu đúng khi toàn bộ citation của phản hồi đúng ở chiều tương ứng. HTTP 200 không được xem là bằng chứng câu trả lời đúng.
 
+### So sánh model sinh câu trả lời và báo cáo accuracy
+
+Hiện project đã có baseline retrieval BM25/Dense/Hybrid, nhưng **chưa có benchmark so sánh model sinh câu trả lời và chưa có accuracy end-to-end được chấm đầy đủ**. Không suy ra accuracy từ `confidence_score` hoặc chỉ từ HTTP 200.
+
+1. Rà soát độc lập các nhãn trong `golden_dataset_v2_draft.csv`; ghi reviewer và adjudication, không dùng cùng câu hỏi làm few-shot.
+2. Đóng băng một bản dataset/corpus đã duyệt và lưu hash.
+3. Chọn một model trả lời trong `LLM_MODEL`, giữ cùng `ORCHESTRATOR_MODEL`, embedding, corpus và prompt. Khởi động lại backend rồi chạy đủ dataset bằng `docs/evaluation/run_full_answer_eval.ps1`.
+4. Lặp lại với model trả lời baseline khác; giữ cùng bộ câu hỏi và cấu hình retrieval. Runner ghi cả `LLM_MODEL` và `ORCHESTRATOR_MODEL` vào metadata để so sánh có thể kiểm tra lại.
+5. Reviewer chấm từng câu trả lời/citation từ nguồn gốc; sau đó dùng `summarize_answer_quality.py` và công cụ citation ở trên để tính answer correctness, completeness, groundedness, refusal accuracy, citation accuracy và lỗi request. Báo riêng mẫu lỗi model/provider.
+
+Golden Dataset là bộ kiểm thử, không phải training data. Few-shot mẫu hành vi trong prompt không lấy đáp án từ bộ kiểm thử để tránh rò rỉ nhãn.
+
 Để tính độ chính xác ở cấp từng citation, tạo bảng một-dòng-mỗi-citation rồi chấm từng dòng:
 
 ```powershell
 python backend/rag_project/flatten_citations.py docs/evaluation/results/<answer_run>.csv
 python backend/rag_project/summarize_citations.py docs/evaluation/results/<answer_run>_citation_review.csv
 python backend/rag_project/summarize_answer_quality.py docs/evaluation/results/<answer_run>.csv
+python backend/rag_project/compare_answer_quality.py docs/evaluation/results/<model_a_run>.csv docs/evaluation/results/<model_b_run>.csv
 ```
+
+Lệnh so sánh yêu cầu metadata cùng dataset hash, corpus hash, orchestrator model và cùng tập `question_id`; các khác biệt sẽ bị từ chối thay vì ghép số liệu không cùng điều kiện.
 
 Refusal rate được tính riêng trên `expected_refusal=true`; false refusal tính trên `expected_refusal=false`. Khi dataset v2 có `expected_refusal_reason`, báo thêm nhóm thiếu căn cứ và ngoài phạm vi riêng. Các script loại request lỗi khỏi mẫu chấm chất lượng nhưng vẫn báo số lượng/tỷ lệ lỗi. Citation accuracy và tỷ lệ câu có citation đúng là hai chỉ số khác nhau.
 

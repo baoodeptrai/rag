@@ -5,8 +5,26 @@ $backend = Join-Path $root "backend"
 $frontend = Join-Path $root "frontend"
 $python = Join-Path $backend ".venv\Scripts\python.exe"
 $rawDir = Join-Path $backend "data\raw"
+$backendEnv = Join-Path $backend ".env"
+if (Test-Path -LiteralPath $backendEnv) {
+  $rawDirSetting = Get-Content -LiteralPath $backendEnv | Where-Object { $_ -match '^\s*RAG_RAW_DIR\s*=' } | Select-Object -Last 1
+  if ($rawDirSetting -match '^\s*RAG_RAW_DIR\s*=\s*(.+?)\s*$') {
+    $configuredRawDir = $Matches[1].Trim('"').Trim("'")
+    if ($configuredRawDir) {
+      $rawDir = if ([System.IO.Path]::IsPathRooted($configuredRawDir)) { $configuredRawDir } else { Join-Path $backend $configuredRawDir }
+    }
+  }
+}
 $processedDir = Join-Path $backend "data\processed"
 $manifestPath = Join-Path $processedDir ".source-manifest"
+$embeddingModel = "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
+if (Test-Path -LiteralPath $backendEnv) {
+  $embeddingSetting = Get-Content -LiteralPath $backendEnv | Where-Object { $_ -match '^\s*EMBEDDING_MODEL\s*=' } | Select-Object -Last 1
+  if ($embeddingSetting -match '^\s*EMBEDDING_MODEL\s*=\s*(.+?)\s*$') {
+    $configuredEmbedding = $Matches[1].Trim('"').Trim("'")
+    if ($configuredEmbedding) { $embeddingModel = $configuredEmbedding }
+  }
+}
 
 if (-not (Get-Command python -ErrorAction SilentlyContinue)) {
   throw "Không tìm thấy Python. Hãy cài Python 3.11+ rồi chạy lại start.ps1."
@@ -45,7 +63,14 @@ if ($sourceFiles.Count -gt 0) {
   }) -join "`n"
   $oldManifest = if (Test-Path $manifestPath) { Get-Content -LiteralPath $manifestPath -Raw } else { "" }
   $indexPath = Join-Path $processedDir "bm25.pkl"
-  if ($manifest -ne $oldManifest -or -not (Test-Path $indexPath)) {
+  $indexMetadataPath = Join-Path $processedDir "index_metadata.json"
+  $activeEmbeddingModel = ""
+  if (Test-Path -LiteralPath $indexMetadataPath) {
+    try { $activeEmbeddingModel = (Get-Content -LiteralPath $indexMetadataPath -Raw | ConvertFrom-Json).embedding_model }
+    catch { $activeEmbeddingModel = "__invalid_index_metadata__" }
+  }
+  $embeddingModelChanged = $activeEmbeddingModel -ne $embeddingModel
+  if ($manifest -ne $oldManifest -or -not (Test-Path $indexPath) -or $embeddingModelChanged) {
     Write-Host "Tài liệu mới hoặc đã thay đổi; đang lập chỉ mục..."
     Push-Location $backend
     $previousErrorActionPreference = $ErrorActionPreference

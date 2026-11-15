@@ -28,3 +28,7 @@ export function uploadAdminDocument(token, formData) {
 export function reindexAdminDocuments(token) {
   return adminRequest("/api/admin/reindex", token, { method: "POST" });
 }
+
+export function updateAdminDocumentMetadata(token, formData) {
+  return adminRequest("/api/admin/documents/metadata", token, { method: "POST", body: formData });
+}

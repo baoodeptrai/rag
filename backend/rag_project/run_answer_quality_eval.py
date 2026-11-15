@@ -57,15 +57,17 @@ def sha256_file(path: Path) -> str | None:
     return digest.hexdigest()
 
 
-def configured_model() -> str | None:
+def configured_model(variable: str = "LLM_MODEL") -> str | None:
+    if os.getenv(variable):
+        return os.getenv(variable)
     env_file = ROOT / "backend" / ".env"
     if not env_file.exists():
-        return os.getenv("LLM_MODEL")
+        return None
     for line in env_file.read_text(encoding="utf-8-sig").splitlines():
-        match = re.match(r"^\s*LLM_MODEL\s*=\s*[\"']?([^\"'#\s]+)", line)
+        match = re.match(rf"^\s*{re.escape(variable)}\s*=\s*[\"']?([^\"'#\s]+)", line)
         if match:
             return match.group(1)
-    return os.getenv("LLM_MODEL")
+    return None
 
 
 def main() -> int:
@@ -118,8 +120,9 @@ def main() -> int:
     dataset_hash = sha256_file(DATASET)
     corpus_hash = sha256_file(chunks_path)
     model_tag = configured_model()
+    orchestrator_tag = configured_model("ORCHESTRATOR_MODEL")
     print(f"This will send {len(dataset)} chat requests to local backend {args.base_url}.")
-    print(f"Configured model: {model_tag or 'unknown'}; corpus hash: {corpus_hash or 'missing'}.")
+    print(f"Answer model: {model_tag or 'unknown'}; orchestrator: {orchestrator_tag or 'qwen3:4b'}; corpus hash: {corpus_hash or 'missing'}.")
     confirmation = os.getenv("RAG_EVAL_CONFIRM") or input("Type RUN to continue: ")
     if confirmation.strip() != "RUN":
         print("Cancelled; no requests were sent.")
@@ -175,6 +178,7 @@ def main() -> int:
         "run_file": output.name,
         "base_url": args.base_url,
         "model_tag_from_backend_env": model_tag,
+        "orchestrator_model_tag_from_backend_env": orchestrator_tag or "qwen3:4b",
         "dataset_path": str(DATASET.relative_to(ROOT)),
         "dataset_sha256": dataset_hash,
         "corpus_path": str(chunks_path.relative_to(ROOT)),

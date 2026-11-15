@@ -1,6 +1,6 @@
 # UniAssist AI RAG
 
-Trợ lý hỏi đáp dành cho sinh viên, dùng tài liệu PDF/DOCX làm nguồn. Frontend React/Vite gọi API FastAPI; backend kết hợp tìm kiếm BM25 và vector Qdrant, rồi dùng Ollama chạy mô hình ngôn ngữ local để tạo câu trả lời có trích dẫn.
+Trợ lý hỏi đáp dành cho sinh viên, dùng tài liệu PDF/DOCX làm nguồn. Frontend React/Vite gọi API FastAPI; backend dùng model Ollama local để chuẩn hóa câu hỏi, bắt buộc truy xuất Qdrant kết hợp BM25, rồi tổng hợp câu trả lời có căn cứ và citation.
 
 ## Yêu cầu
 
@@ -25,7 +25,7 @@ Lần chạy đầu, script tạo `backend/.venv`, cài Python packages và fron
 - API và Swagger: <http://127.0.0.1:8000/docs>
 - Trạng thái API: <http://127.0.0.1:8000/health>
 
-Để dừng ứng dụng, đóng hai cửa sổ server đã mở. Chạy lại `start.ps1` sau khi thêm hoặc sửa tài liệu; script so sánh nội dung tài liệu với manifest để quyết định có lập chỉ mục lại hay không.
+Để dừng ứng dụng, đóng hai cửa sổ server đã mở. Chạy lại `start.ps1` sau khi thêm/sửa tài liệu hoặc đổi model embedding; script so sánh hash tài liệu và metadata model embedding để quyết định có lập chỉ mục lại hay không.
 
 ## Cài đặt và chạy thủ công
 
@@ -44,13 +44,16 @@ Mở `backend/.env`, đặt `ADMIN_API_TOKEN` thành một chuỗi bí mật ri�
 
 ### 2. Cấu hình Ollama
 
-Cài Ollama, khởi động Ollama và tải model được cấu hình trong `backend/.env` (mặc định `qwen3:4b`):
+Cài và khởi động Ollama. Mặc định `ORCHESTRATOR_MODEL=qwen3:4b` phân tích ý định và chuẩn hóa truy vấn trước khi tìm kiếm; `LLM_MODEL=qwen2.5:7b` tổng hợp câu trả lời. Các model này có thể đổi sang tag 4B/7B khác trong Ollama nếu máy phù hợp. Tải mọi model đã cấu hình:
 
 ```powershell
 ollama pull qwen3:4b
+ollama pull qwen2.5:7b
 ```
 
-Backend dùng Ollama local tại `http://127.0.0.1:11434`. Phần embedding sử dụng `sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2`; hãy đảm bảo model này đã được tải/cache trên máy trước khi chạy pipeline hoặc truy vấn lần đầu. Sau khi đã có model trong cache, quá trình inference được cấu hình chạy offline. Nếu thay `LLM_MODEL` hoặc `EMBEDDING_MODEL`, tải/cache model tương ứng trước.
+Nếu đổi một trong hai model, chạy `ollama pull <tên-model>` tương ứng. Backend chỉ gọi Ollama trên `127.0.0.1`; không gửi prompt tới dịch vụ LLM bên ngoài. Embedding dùng `sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2`; tải/cache model này trước khi lập chỉ mục. Sau khi tải đủ model và thư viện, inference có thể chạy offline. Xem các tag tại [thư viện model Ollama](https://ollama.com/library/qwen2.5).
+
+Luồng hỏi đáp: Qwen local phân loại ý định và chuẩn hóa câu truy vấn → hybrid retrieval bắt buộc hỏi Qdrant và kết hợp BM25 → model trả lời chỉ nhận hai chunks đầu. Chỉ các chunks đưa vào model mới được trả thành citations; khi model lỗi, hệ thống không gắn citation vào thông báo lỗi. Nếu Qdrant/collection chưa sẵn sàng, API báo lỗi index thay vì âm thầm chạy BM25-only. Nếu không có bằng chứng đủ điểm, model trả lời không tìm thấy căn cứ. Khi model điều phối lỗi, hệ thống ghi log và truy xuất bằng câu hỏi gốc; vẫn không gọi dịch vụ bên ngoài. Hai bước gọi Ollama tuần tự nên độ trễ tăng, nhất là khi chạy CPU.
 
 ### 3. Thêm tài liệu và lập chỉ mục
 
@@ -60,7 +63,7 @@ Chép PDF/DOCX vào `backend/data/raw`. Giới hạn upload mặc định là 20
 python -m rag_project.pipeline
 ```
 
-Pipeline đọc toàn bộ tài liệu trong `data/raw`, tạo chunks và chỉ mục BM25 trong `data/processed`, đồng thời lưu vector database ở `data/qdrant`. Chỉ mục mới được đưa vào sử dụng sau khi pipeline chạy thành công. Lỗi đọc tài liệu hoặc lỗi tạo index sẽ khiến index hiện tại được giữ lại. Khi kho tài liệu trống và pipeline chạy thành công, index cũ được dọn.
+Pipeline đọc toàn bộ tài liệu trong `data/raw`, chuẩn hóa văn bản, chia chunks kèm tên file/trang/chương/điều/khoản và metadata hiệu lực, bỏ qua tài liệu trùng nội dung, tạo BM25 trong `data/processed` và vector database ở `data/qdrant`. Vector được chuẩn hóa trước khi lưu và dùng khoảng cách cosine. Chỉ mục mới được đưa vào sử dụng sau khi pipeline chạy thành công; lỗi đọc hoặc tạo index giữ lại bản index trước.
 
 `start.ps1` tự kiểm tra thay đổi tài liệu và gọi pipeline khi cần. Khi chạy backend thủ công, hãy tự chạy lại lệnh pipeline sau mỗi lần thay đổi kho tài liệu.
 
@@ -88,10 +91,13 @@ Mặc định giao diện ở <http://localhost:5173> và gọi API tại `http:
 Trong giao diện, mở **Quản lý tài liệu** và nhập giá trị `ADMIN_API_TOKEN` từ `backend/.env`. Quản trị viên có thể tải tài liệu lên, xem tài liệu hiện hành/lưu trữ và cập nhật chỉ mục. Các endpoint quản trị yêu cầu token; không đặt token trong frontend hoặc đưa token vào tài liệu công khai.
 
 - **Thêm tài liệu:** tải file mới lên kho rồi cập nhật chỉ mục.
-- **Thay tài liệu:** chọn bản hiện hành cần thay; bản cũ được lưu trữ và bản mới trở thành bản active.
+- **Thay tài liệu:** chọn bản hiện hành cần thay; bản cũ được lưu trữ và chỉ mục tự dựng lại.
+- **Thay theo số/ký hiệu:** nhập số văn bản mới và số văn bản bị thay thế. Nếu số cũ khớp đúng một tài liệu đang dùng, backend tự archive bản đó và lập chỉ mục lại. Số văn bản cần được quản trị viên nhập/xác nhận; hệ thống chưa tự đọc quan hệ thay thế từ website hoặc nội dung scan.
+- **Bổ sung metadata cho file cũ:** dùng biểu mẫu “Hiệu chỉnh metadata tài liệu hiện hành” để gán số hiệu/ngày hiệu lực cho tài liệu đã nạp trước đây; chỉ mục sẽ được dựng lại.
 - **Tài liệu sửa đổi/phụ lục:** lưu thành file riêng và liên kết với tài liệu gốc khi phù hợp.
+- **Ngày hiệu lực:** nhập ngày ban hành, ngày bắt đầu và ngày kết thúc (nếu có). Tài liệu ngoài thời hạn không được trả về trong kết quả truy xuất; để dọn khỏi kho vector, chạy cập nhật chỉ mục sau khi thay đổi tài liệu.
 
-Chỉ tài liệu active được đưa vào index. Có thể đặt nguồn tài liệu ở vị trí khác bằng `RAG_RAW_DIR` trong `backend/.env`. Không xóa tài liệu lưu trữ cho đến khi index mới được dựng thành công và citation đã được rà soát.
+Khi có N thông báo mới dạng thêm mới, có thể tải lần lượt và bấm cập nhật chỉ mục một lần; pipeline sẽ dựng lại toàn bộ kho active. Khi thay theo số văn bản, backend archive và dựng lại index ngay sau từng lần thay. Có thể đặt nguồn tài liệu ở vị trí khác bằng `RAG_RAW_DIR` trong `backend/.env`. Chưa có crawler/lịch tự đồng bộ vì cần cấu hình URL/API nguồn chính thức.
 
 ## Cấu hình thường dùng
 
@@ -102,12 +108,21 @@ Chỉ tài liệu active được đưa vào index. Có thể đặt nguồn tà
 | `RAG_RAW_DIR` | `backend/.env` | Thư mục tài liệu nguồn; mặc định `backend/data/raw` |
 | `MAX_FILE_SIZE_MB`, `ALLOWED_EXTENSIONS` | `backend/.env` | Giới hạn upload và loại file được nhận |
 | `EMBEDDING_MODEL`, `TOP_K` | `backend/.env` | Model embedding và số đoạn truy xuất |
-| `LLM_BASE_URL`, `LLM_MODEL`, `LLM_TIMEOUT` | `backend/.env` | Địa chỉ Ollama local, model chat và timeout |
+| `LLM_BASE_URL`, `LLM_MODEL`, `ORCHESTRATOR_MODEL`, `LLM_TIMEOUT` | `backend/.env` | Ollama local, model trả lời, model phân tích câu hỏi và timeout |
 | `ADMIN_API_TOKEN` | `backend/.env` | Token bảo vệ API quản trị tài liệu |
 | `VITE_API_BASE_URL` | `frontend/.env` | Địa chỉ backend mà frontend gọi |
 | `VITE_DEMO_MODE` | `frontend/.env` | Bật/tắt dữ liệu demo; để `false` khi dùng RAG thật |
 
 Giữ Ollama ở địa chỉ loopback (`localhost` hoặc `127.0.0.1`); backend từ chối endpoint LLM ngoài máy local. Khi đổi model embedding, cần chạy lại pipeline để tái tạo vector index bằng model đó.
+
+## Đánh giá và giới hạn hiện tại
+
+- Đã có retrieval benchmark BM25-only, Dense-only, Hybrid RRF và so sánh chunking; kết quả mô tả hiện tại dựa trên một tài liệu và Golden Dataset v2 còn chờ cross-review. Báo cáo hiện tại cho thấy BM25 thắng Hybrid trên bộ dữ liệu đó.
+- Golden Dataset là **dữ liệu đánh giá**, không phải training dataset. RAG không cần fine-tuning để trả lời từ tài liệu.
+- Prompt có ví dụ mẫu về câu trả lời grounded và từ chối khi thiếu chứng cứ. Đây là few-shot hướng dẫn hành vi, không phải câu trả lời chuẩn đã được nhóm cross-review.
+- Chưa có accuracy end-to-end được chấm đầy đủ. Cần chạy answer-quality trên dataset đã cross-review rồi người đánh giá chấm answer correctness, completeness, groundedness, citation và refusal. `confidence_score` không thay thế các chỉ số đó.
+- Chưa có benchmark so sánh nhiều model sinh câu trả lời hoặc nhiều embedding trên cùng corpus; cũng chưa có crawler vì chưa cấu hình website/API nguồn.
+- PDF scan không có lớp OCR; cần OCR hóa trước khi nạp, nếu không pipeline có thể không trích được nội dung.
 
 ## Kiểm tra nhanh và xử lý lỗi
 
