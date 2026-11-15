@@ -88,7 +88,7 @@ Mặc định giao diện ở <http://localhost:5173> và gọi API tại `http:
 
 ## Quản lý tài liệu
 
-Trong giao diện, mở **Quản lý tài liệu** và nhập giá trị `ADMIN_API_TOKEN` từ `backend/.env`. Trang quản trị có thao tác thêm PDF/DOCX, thay một file hiện hành bằng file mới, xóa khỏi kho đang dùng và cập nhật kho tài liệu. Khi xóa, giao diện yêu cầu xác nhận; file được chuyển vào kho lưu trữ và chỉ mục được dựng lại. Các endpoint quản trị yêu cầu token; không đặt token trong frontend hoặc đưa token vào tài liệu công khai.
+Trang người dùng chỉ hiển thị chat. Mở riêng <http://localhost:5173/admin> để vào trang quản trị và nhập `ADMIN_API_TOKEN` từ `backend/.env`. Trang quản trị có thao tác thêm PDF/DOCX, thay một file hiện hành bằng file mới, xóa khỏi kho đang dùng và cập nhật kho tài liệu. Khi xóa, giao diện yêu cầu xác nhận; file được chuyển vào kho lưu trữ và chỉ mục được dựng lại. Các endpoint quản trị yêu cầu token; không đặt token trong frontend hoặc đưa token vào tài liệu công khai.
 
 - **Thêm tài liệu:** tải file mới lên kho rồi cập nhật chỉ mục.
 - **Thay tài liệu:** chọn bản hiện hành cần thay; bản cũ được lưu trữ và chỉ mục tự dựng lại.

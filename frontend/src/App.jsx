@@ -5,6 +5,7 @@ import { getApiBaseUrl, isDemoMode, sendChatMessage } from "./services/chatServi
 import "./App.css";
 
 const STORAGE_KEY = "uniassist-conversations-v1";
+const isAdminRoute = window.location.pathname.replace(/\/$/, "") === "/admin";
 
 function makeId() {
   return `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
@@ -41,7 +42,6 @@ function App() {
   });
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
-  const [activeTab, setActiveTab] = useState("chat");
   const [notice, setNotice] = useState("");
   const abortRef = useRef(null);
 
@@ -79,7 +79,6 @@ function App() {
     setInput("");
     setLoading(false);
     setNotice("");
-    setActiveTab("chat");
   }
 
   function chooseConversation(conversation) {
@@ -88,7 +87,6 @@ function App() {
     setInput("");
     setLoading(false);
     setNotice("");
-    setActiveTab("chat");
   }
 
   function deleteConversation(id) {
@@ -183,6 +181,10 @@ function App() {
     sendMessage();
   }
 
+  if (isAdminRoute) {
+    return <div className="admin-standalone"><a href="/" className="admin-back-link">← Về trang người dùng</a><AdminDocuments /></div>;
+  }
+
   return (
     <div className="app-shell">
       <aside className="sidebar">
@@ -199,12 +201,9 @@ function App() {
         </button>
 
         <div className="sidebar-label">KHÔNG GIAN LÀM VIỆC</div>
-        <button className={`nav-item ${activeTab === "chat" ? "selected" : ""}`} onClick={() => setActiveTab("chat")}>
+        <a className="nav-item selected" href="/">
           <span>▤</span> Trợ lý sinh viên
-        </button>
-        <button className={`nav-item ${activeTab === "admin" ? "selected" : ""}`} onClick={() => setActiveTab("admin")}>
-          <span>⚙</span> Quản lý tài liệu
-        </button>
+        </a>
 
         <div className="sidebar-label history-label">GẦN ĐÂY</div>
         <div className="conversation-list">
@@ -228,8 +227,8 @@ function App() {
       <main className="main-panel">
         <header className="topbar">
           <div>
-            <div className="breadcrumb">Không gian học tập / {activeTab === "admin" ? "Quản trị" : "Trợ lý AI"}</div>
-            <h1>{activeTab === "admin" ? "Quản lý tài liệu" : "Trợ lý sinh viên"}</h1>
+            <div className="breadcrumb">Không gian học tập / Trợ lý AI</div>
+            <h1>Trợ lý sinh viên</h1>
           </div>
           <div className="connection-status">
             <span className={`status-dot ${isDemoMode() ? "demo-dot" : "api-dot"}`} />
@@ -239,18 +238,14 @@ function App() {
 
         {notice && <div className="app-notice" role="status">{notice}<button onClick={() => setNotice("")} aria-label="Đóng thông báo">×</button></div>}
 
-        {activeTab === "admin" ? (
-          <AdminDocuments />
-        ) : (
-          <ChatWindow
-            messages={messages}
-            input={input}
-            setInput={setInput}
-            loading={loading}
-            onSend={sendMessage}
-            onSubmit={handleSubmit}
-          />
-        )}
+        <ChatWindow
+          messages={messages}
+          input={input}
+          setInput={setInput}
+          loading={loading}
+          onSend={sendMessage}
+          onSubmit={handleSubmit}
+        />
       </main>
     </div>
   );

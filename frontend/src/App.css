@@ -775,6 +775,9 @@ button:disabled {
 
 .secondary-button { padding: 9px 13px; border: 1px solid #d8e0ea; border-radius: 9px; background: #fff; color: #3c526d; font-size: 12px; font-weight: 650; }
 .admin-page { width: min(1160px, 100%); margin: 0 auto; padding: 30px 28px 44px; }
+.admin-standalone { min-height: 100vh; padding: 14px 20px; background: #f6f8fb; }
+.admin-back-link { display: inline-block; margin: 0 0 10px max(0px, calc((100vw - 1160px) / 2)); color: #55708f; font-size: 12px; text-decoration: none; }
+.admin-back-link:hover { color: #284f7c; text-decoration: underline; }
 .admin-title-row, .admin-list-heading { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
 .admin-title-row { margin-bottom: 22px; }
 .admin-title-row h2, .admin-lock-card h2 { margin: 5px 0 6px; color: #20354f; font-size: 25px; }
